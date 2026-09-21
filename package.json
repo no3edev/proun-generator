@@ -1,0 +1,18 @@
+{
+  "name": "proun-generator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A generative art tool inspired by El Lissitzky's Proun series, built with Three.js.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  }
+}

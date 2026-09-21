@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Proun Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/src/ui/panel.css">
+</head>
+<body>
+
+<div id="app">
+  <div id="stage-wrap">
+    <canvas id="scene"></canvas>
+    <div id="paper-overlay"></div>
+    <div id="hint">click / space — advance composition</div>
+  </div>
+</div>
+
+<div id="panel">
+  <h1>proun generator — dev controls</h1>
+
+  <div class="field">
+    <label for="palette-select">Palette</label>
+    <select id="palette-select"></select>
+  </div>
+
+  <div class="field">
+    <label for="orientation-select">Orientation</label>
+    <select id="orientation-select">
+      <option value="landscape">Landscape</option>
+      <option value="portrait">Portrait</option>
+      <option value="square">Square</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label for="duration-input">Transition duration (ms)</label>
+    <input type="number" id="duration-input" min="200" max="6000" step="100" value="1100">
+  </div>
+
+  <button id="advance-btn" class="primary">Advance composition</button>
+
+  <hr class="divider">
+
+  <div class="field row">
+    <input type="checkbox" id="auto-toggle">
+    <label for="auto-toggle">Auto-advance</label>
+  </div>
+  <div class="field">
+    <label for="interval-input">Interval (ms)</label>
+    <input type="number" id="interval-input" min="500" max="20000" step="100" value="4000">
+  </div>
+
+  <div class="field" id="shape-count"></div>
+
+  <hr class="divider">
+
+  <div class="field">
+    <label>Show / hide shapes</label>
+    <!-- populated at runtime from the shape registry, so adding a
+         new shape module automatically adds its checkbox here -->
+    <div id="shape-checkboxes"></div>
+  </div>
+
+  <hr class="divider">
+
+  <button id="export-png-btn">Export PNG</button>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
