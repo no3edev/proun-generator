@@ -40,7 +40,8 @@ src/
 │   ├── cubeVariable.js
 │   ├── circle.js
 │   ├── sphere.js
-│   └── triangle.js
+│   ├── triangle.js
+│   └── plane.js
 ├── collision/
 │   └── CollisionResolver.js   generic AABB + depth-axis push, shape-agnostic
 ├── texture/
