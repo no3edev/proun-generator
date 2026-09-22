@@ -17,7 +17,12 @@ export default {
   create(hex) {
     // low-poly icosahedron with per-face vertex colors standing in
     // for flat shading (MeshBasicMaterial ignores real lights)
-    const geo = new THREE.IcosahedronGeometry(0.68, DETAIL).toNonIndexed();
+    // low-poly icosahedron with per-face vertex colors standing in
+    // for flat shading (MeshBasicMaterial ignores real lights).
+    // Modern three.js already builds this non-indexed; toNonIndexed()
+    // is only called as a defensive no-op for older/indexed builds.
+    const rawGeo = new THREE.IcosahedronGeometry(0.68, DETAIL);
+    const geo = rawGeo.index ? rawGeo.toNonIndexed() : rawGeo;
     const pos = geo.attributes.position;
     const vertexCount = pos.count;
     const colors = new Float32Array(vertexCount * 3);

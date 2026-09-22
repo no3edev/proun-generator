@@ -3,8 +3,10 @@ import { materialSetMesh } from '../texture/materials.js';
 
 const TYPE = 'triangle';
 
-// ExtrudeGeometry groups sides at material index 0, front+back caps at index 1
-const SHADE_MULTIPLIERS = [0.7, 1.0];
+// ExtrudeGeometry groups front+back caps at material index 0, sides at
+// index 1 (verified against the installed three.js version — this is
+// the opposite of what you might assume from the constructor order)
+const SHADE_MULTIPLIERS = [1.0, 0.7];
 
 export default {
   type: TYPE,

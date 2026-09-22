@@ -55,7 +55,7 @@ export function update(dt) {
       // always facing the fixed camera — rotation is never eased
       t.mesh.quaternion.copy(Billboard.get());
     } else {
-      THREE.Quaternion.slerp(t.start.quaternion, t.endQuaternion, t.mesh.quaternion, e);
+      t.mesh.quaternion.slerpQuaternions(t.start.quaternion, t.endQuaternion, e);
     }
     t.mesh.scale.lerpVectors(t.start.scale, t.endScale, e);
 
