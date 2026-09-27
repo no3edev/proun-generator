@@ -1,12 +1,15 @@
 import * as THREE from 'three';
+import { clampColor } from '../texture/materials.js';
 
 const TYPE = 'sphere';
 
 // Icosahedron subdivision level. 1 = 80 triangles (original prototype),
-// 2 = 320 (current), 3 = 1280 (near-smooth, still flat-shaded facets).
-// Bump this if you want a rounder sphere; drop it for something more
-// crystalline.
-const DETAIL = 2;
+// 2 = 320 (previous), 3 = 1280 (current — near-smooth, still flat-shaded
+// facets). Bump this further if you want an even rounder sphere; drop
+// it for something more crystalline. create() only runs at startup and
+// when an instance is added via the count stepper, not per re-randomize
+// or tween frame, so this is cheap even at higher detail levels.
+const DETAIL = 3;
 
 export default {
   type: TYPE,
@@ -41,10 +44,10 @@ export default {
       const factor = 0.55 + (normal.dot(lightDir) * 0.5 + 0.5) * 0.65;
       for (let j = 0; j < 3; j++) {
         shadeFactors[i + j] = factor;
-        const c = base.clone().multiplyScalar(factor);
-        colors[(i + j) * 3] = Math.min(1, c.r);
-        colors[(i + j) * 3 + 1] = Math.min(1, c.g);
-        colors[(i + j) * 3 + 2] = Math.min(1, c.b);
+        const c = clampColor(base.clone().multiplyScalar(factor));
+        colors[(i + j) * 3] = c.r;
+        colors[(i + j) * 3 + 1] = c.g;
+        colors[(i + j) * 3 + 2] = c.b;
       }
     }
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));

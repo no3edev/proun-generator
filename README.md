@@ -50,10 +50,15 @@ src/
 ├── palette/
 │   ├── palettes.js        palette data — edit here to add a palette
 │   └── Palette.js         active-palette state
+├── settings/
+│   └── ShapeSettings.js   per-shape size-multiplier range, position spread, visibility
 ├── export/
 │   └── PngExporter.js     canvas + overlay compositing -> PNG download
 └── ui/
     ├── Panel.js           dev control panel wiring
+    ├── ShapeAccordion.js  per-shape collapsible settings sections
+    ├── accordion.js       shared collapsible-section helpers (used by
+    │                      ShapeAccordion.js and the panel's Time section)
     └── panel.css
 ```
 
@@ -76,15 +81,59 @@ Then add one line to `src/shapes/registry.js`. `Composition`,
 `CollisionResolver`, and the panel's checkbox list all iterate the registry
 generically — nothing else needs to change.
 
+### Per-shape settings (count, size range, position spread)
+
+`settings/ShapeSettings.js` holds, per shape type: an instance **count**,
+a size-multiplier range (`sizeMin`/`sizeMax`), a position `spread` (0–2),
+and `visible`. These are layered on top of each shape's own logic rather
+than replacing it:
+
+- **Count**: `Composition.js` keeps `instances[type]` as an array of
+  meshes, not a single mesh — `setCount()` adds or removes entries live,
+  canceling any in-flight tween on a removed instance (`Tween.removeForMesh`)
+  so nothing keeps animating a mesh no longer in the scene. Each instance
+  of the same type independently calls `randomTarget()`, so instances
+  never move in sync or share a color — including during collision
+  resolution, which treats every instance of every type as just another
+  candidate in one flat list (see below).
+- **Size**: `Composition.js` multiplies whatever a shape's own
+  `randomScale()` returns by a value randomly sampled from
+  `[sizeMin, sizeMax]`. At the default 1.0–1.0 this is a no-op — a shape's
+  authored proportions (stripe/slab/block moods, the plane's thin-axis
+  logic, etc.) are untouched. Widen the range and that shape runs bigger
+  or smaller overall while keeping its character.
+- **Spread**: multiplies the shared position-sampling bounds (in
+  `Composition.js`) per axis. 0 = always at the origin, 1 = the full
+  range used today, 2 = double that range.
+
+The panel's per-shape accordion (`ui/ShapeAccordion.js`) reads and writes
+these directly from the registry, so a new shape gets working count/size/
+spread controls with no UI code changes. New instances added via the
+count stepper are placed with their own random target immediately, but
+are not collision-resolved against the rest of the scene until the next
+`advance()` — a brief, self-correcting overlap rather than added
+complexity for an edge case.
+
 ### Textures
 
 `texture/PaperTexture.js` generates the grain/blotch canvas used both as the
 CSS paper overlay behind the stage and baked into every shape's material.
-`texture/materials.js` wires that into `MeshBasicMaterial`s and tags each
-mesh's `userData` so `Tween.js` knows how to re-tint it as color eases
-between states. To swap in real scanned paper/watercolor images later,
-this is the only place that needs to change — shape modules just call
-`materialSetMesh(...)` and don't know what's behind it.
+`texture/materials.js` wires that into `MeshBasicMaterial`s via
+`shadeColor()`/`clampColor()` and tags each mesh's `userData` so `Tween.js`
+knows how to re-tint it as color eases between states. **Both a shape's
+resting-state color and every tween frame's recomputed color must go
+through the same `shadeColor()`/`clampColor()` math** — three.js's `Color`
+works internally in linear space (color management converts an sRGB hex
+string to linear on assignment), so mixing a linear-space multiply with an
+sRGB-space one for the same nominal color produces two visibly different
+results. An earlier version of this code did exactly that (a separate
+integer-sRGB `shadeHex()` for material creation vs. a linear `Color`
+multiply in the tween loop) and it caused a visible snap at the start of
+every transition. If you add a new shading path, route it through
+`shadeColor()`, not through raw hex-string math. To swap in real scanned
+paper/watercolor images later, `texture/` is the only place that needs to
+change — shape modules just call `materialSetMesh(...)` and don't know
+what's behind it.
 
 ### Collisions
 

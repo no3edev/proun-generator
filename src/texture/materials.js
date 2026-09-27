@@ -1,18 +1,36 @@
 import * as THREE from 'three';
-import { makeGrainCanvas, hexToRgb, clamp8 } from './PaperTexture.js';
+import { makeGrainCanvas } from './PaperTexture.js';
 
-export function grainTexture(hex) {
-  const c = makeGrainCanvas(128, 128, hex, { noiseStrength: 22, blotches: 3 });
+// Every material's resting color, AND every tween frame's recomputed
+// color (in Tween.js), goes through shadeColor()/clampColor() — using
+// the exact same math in both places is what keeps a transition's
+// starting appearance identical to the shape's resting appearance, so
+// there's no snap the instant a tween begins. Do not reintroduce a
+// separate sRGB-integer path here (there used to be one, `shadeHex`) —
+// THREE.Color's internal representation is linear (color management
+// converts sRGB hex -> linear on assignment), so mixing an sRGB-space
+// multiply with a linear-space multiply produces two different colors
+// for the same (hex, multiplier) pair.
+
+/** Clamps a THREE.Color's channels to [0,1] in place and returns it. */
+export function clampColor(color) {
+  color.r = Math.min(1, color.r);
+  color.g = Math.min(1, color.g);
+  color.b = Math.min(1, color.b);
+  return color;
+}
+
+/** Returns a new, clamped THREE.Color = hex tinted by `mult`. */
+export function shadeColor(hex, mult) {
+  return clampColor(new THREE.Color(hex).multiplyScalar(mult));
+}
+
+export function grainTexture(hex, mult = 1) {
+  const shaded = shadeColor(hex, mult);
+  const c = makeGrainCanvas(128, 128, `#${shaded.getHexString()}`, { noiseStrength: 22, blotches: 3 });
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   return tex;
-}
-
-export function shadeHex(hex, mult) {
-  const base = hexToRgb(hex);
-  return `#${[base.r, base.g, base.b]
-    .map((c) => clamp8(Math.round(c * mult)).toString(16).padStart(2, '0'))
-    .join('')}`;
 }
 
 /**
@@ -32,10 +50,10 @@ export function shadeHex(hex, mult) {
  * @param {string} shapeType
  */
 export function materialSetMesh(geo, hex, shadeMultipliers, shapeType) {
-  const mats = shadeMultipliers.map((s) => {
-    const shaded = shadeHex(hex, s);
-    return new THREE.MeshBasicMaterial({ color: shaded, map: grainTexture(shaded) });
-  });
+  const mats = shadeMultipliers.map((mult) => new THREE.MeshBasicMaterial({
+    color: shadeColor(hex, mult),
+    map: grainTexture(hex, mult)
+  }));
   const mesh = new THREE.Mesh(geo, mats.length === 1 ? mats[0] : mats);
   mesh.userData.baseHex = hex;
   mesh.userData.shadeMultipliers = shadeMultipliers;
