@@ -19,55 +19,64 @@
 </div>
 
 <div id="panel">
-  <div class="field">
-    <label for="orientation-select">Orientation</label>
-    <select id="orientation-select">
-      <option value="landscape">Landscape</option>
-      <option value="portrait">Portrait</option>
-      <option value="square">Square</option>
-    </select>
-  </div>
+  <div class="brand"><span class="brand-mark"></span>Proun</div>
 
-  <div class="field">
-    <label for="palette-select">Palette</label>
-    <select id="palette-select"></select>
-  </div>
+  <section class="group">
+    <div class="field">
+      <label for="orientation-select">Orientation</label>
+      <select id="orientation-select">
+        <option value="landscape">Landscape</option>
+        <option value="portrait">Portrait</option>
+        <option value="square">Square</option>
+      </select>
+    </div>
 
-  <div class="accordion-item">
-    <button type="button" class="accordion-header" id="time-header">
-      <span class="accordion-title">Time</span>
-      <span class="accordion-chevron" id="time-chevron">▸</span>
-    </button>
-    <div class="accordion-panel" id="time-body" hidden>
-      <div class="field">
-        <label for="duration-input">Transition duration (ms)</label>
-        <input type="number" id="duration-input" min="200" max="6000" step="100" value="1100">
-      </div>
-      <div class="field">
-        <label for="interval-input">Interval (ms)</label>
-        <input type="number" id="interval-input" min="500" max="20000" step="100" value="4000">
-      </div>
-      <div class="field row">
-        <input type="checkbox" id="auto-toggle">
-        <label for="auto-toggle">Auto-advance</label>
+    <div class="field">
+      <label for="palette-select">Palette</label>
+      <select id="palette-select"></select>
+    </div>
+  </section>
+
+  <section class="group">
+    <div class="accordion-item">
+      <button type="button" class="accordion-header" id="time-header">
+        <span class="accordion-title">Time</span>
+        <span class="accordion-chevron" id="time-chevron">+</span>
+      </button>
+      <div class="accordion-panel" id="time-body" hidden>
+        <div class="split">
+          <div class="field">
+            <label for="duration-input">Duration <i>ms</i></label>
+            <input type="number" id="duration-input" min="200" max="6000" step="100" value="1100">
+          </div>
+          <div class="field">
+            <label for="interval-input">Interval <i>ms</i></label>
+            <input type="number" id="interval-input" min="500" max="20000" step="100" value="4000">
+          </div>
+        </div>
+        <div class="field row">
+          <input type="checkbox" id="auto-toggle">
+          <label for="auto-toggle">Auto</label>
+        </div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <hr class="divider">
-
-  <div class="field">
-    <label>Shapes</label>
+  <section class="group">
+    <h2 class="section-label">Shapes</h2>
     <!-- populated at runtime from the shape registry, so adding a
-         new shape module automatically adds its accordion section -->
-    <div id="shape-checkboxes"></div>
-  </div>
+         new shape module automatically adds its tab -->
+    <div id="shape-tabs"></div>
+  </section>
 
-  <hr class="divider">
+  <section class="group">
+    <!-- populated at runtime — see ui/PresetsPanel.js -->
+    <div id="presets-section"></div>
+  </section>
 
   <div class="button-stack">
     <button id="advance-btn" class="primary">Advance composition</button>
-    <button id="export-png-btn">Export PNG</button>
+    <button id="export-png-btn" class="secondary">Export PNG</button>
   </div>
 </div>
 

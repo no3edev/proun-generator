@@ -52,14 +52,28 @@ src/
 │   └── Palette.js         active-palette state
 ├── settings/
 │   └── ShapeSettings.js   per-shape size-multiplier range, position spread, visibility
+├── presets/
+│   ├── PresetStore.js     localStorage-backed save/load/import/export,
+│   │                      newest-first, capped at MAX_PRESETS (20)
+│   └── SceneSnapshot.js   captures/applies a full panel state (per-shape
+│                          settings, orientation, palette, timing) as JSON
 ├── export/
 │   └── PngExporter.js     canvas + overlay compositing -> PNG download
 └── ui/
-    ├── Panel.js           dev control panel wiring
-    ├── ShapeAccordion.js  per-shape collapsible settings sections
-    ├── accordion.js       shared collapsible-section helpers (used by
-    │                      ShapeAccordion.js and the panel's Time section)
-    └── panel.css
+    ├── Panel.js           panel wiring: Orientation/Palette, the Time
+    │                      accordion, shape tabs, Presets, action buttons
+    ├── ShapeTabs.js        builds the icon tab row + per-shape settings
+    │                      (count, size-range slider, spread, visibility)
+    ├── tabs.js             generic tab-strip helper (icon or label tabs,
+    │                      active state) used by ShapeTabs.js
+    ├── shapeIcons.js       the six minimal SVG glyphs used on the shape
+    │                      tabs, keyed by shape `type`
+    ├── accordion.js        shared collapsible-section helper (Time,
+    │                      Presets)
+    ├── PresetsPanel.js     builds the Presets accordion section: save,
+    │                      the saved-preset list (load/export/delete per
+    │                      row), and export-all/import
+    └── panel.css           dark editorial panel styling
 ```
 
 ### Adding a new shape
@@ -106,13 +120,30 @@ than replacing it:
   `Composition.js`) per axis. 0 = always at the origin, 1 = the full
   range used today, 2 = double that range.
 
-The panel's per-shape accordion (`ui/ShapeAccordion.js`) reads and writes
-these directly from the registry, so a new shape gets working count/size/
-spread controls with no UI code changes. New instances added via the
-count stepper are placed with their own random target immediately, but
-are not collision-resolved against the rest of the scene until the next
+The panel's per-shape tab (`ui/ShapeTabs.js`) reads and writes these
+directly from the registry, so a new shape gets working count/size/spread
+controls with no UI code changes. New instances added via the count
+stepper are placed with their own random target immediately, but are not
+collision-resolved against the rest of the scene until the next
 `advance()` — a brief, self-correcting overlap rather than added
 complexity for an edge case.
+
+Size is edited with a dual-handle slider (log-scaled from 0.05 to 10, so
+the common 0.5–2× zone isn't squeezed into a sliver of track) rather than
+two number fields; dragging either handle, clicking the track, or the
+arrow keys all route through the same `setSizeRange()` call as before.
+
+### Presets
+
+`ui/PresetsPanel.js` + `presets/PresetStore.js` let the full panel state
+— every shape's count/size-range/spread/visibility, orientation, palette,
+transition duration, and interval — be saved under a name, reloaded, or
+deleted, up to `MAX_PRESETS` (20, oldest dropped first). `SceneSnapshot.js`
+is the single place that knows how to serialize/deserialize that state to
+JSON, so it's also what "Export all" and "Import" (single-preset or
+whole-library JSON files) read and write. Presets persist in
+`localStorage`; if that's unavailable the store falls back to an
+in-memory list for the session instead of throwing.
 
 ### Textures
 

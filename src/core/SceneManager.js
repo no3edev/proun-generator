@@ -3,7 +3,7 @@ import { Palette } from '../palette/Palette.js';
 import { Billboard } from './Billboard.js';
 import { Tween } from './Tween.js';
 import { Composition } from './Composition.js';
-import { makeGrainCanvas } from '../texture/PaperTexture.js';
+import { paperStructure, tintStructure } from '../texture/PaperTexture.js';
 
 let renderer, scene, camera, stageWrap, clock;
 let overlayCanvas = null; // cached so PNG export can composite it in
@@ -56,7 +56,7 @@ function applyOrientation(name) {
 function updateBackground() {
   renderer.setClearColor(new THREE.Color(Palette.active().paper), 1);
   const overlay = document.getElementById('paper-overlay');
-  overlayCanvas = makeGrainCanvas(600, 600, Palette.active().paper, { noiseStrength: 10, blotches: 14 });
+  overlayCanvas = tintStructure(paperStructure(), Palette.active().paper);
   overlay.style.backgroundImage = `url(${overlayCanvas.toDataURL()})`;
   overlay.style.backgroundSize = 'cover';
 }
@@ -92,6 +92,7 @@ export const SceneManager = {
   },
 
   applyOrientation,
+  orientationNames() { return Object.keys(ORIENTATIONS); },
   updateBackground,
   loop,
 

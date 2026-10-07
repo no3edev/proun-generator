@@ -2,7 +2,8 @@ import { Palette } from '../palette/Palette.js';
 import { Composition } from '../core/Composition.js';
 import { SceneManager } from '../core/SceneManager.js';
 import { exportPNG } from '../export/PngExporter.js';
-import { buildShapeAccordion } from './ShapeAccordion.js';
+import { buildShapeTabs } from './ShapeTabs.js';
+import { buildPresetsPanel } from './PresetsPanel.js';
 import { wireAccordionToggle } from './accordion.js';
 
 export function initPanel() {
@@ -51,10 +52,32 @@ export function initPanel() {
   autoToggle.addEventListener('change', restartAuto);
   intervalInput.addEventListener('change', restartAuto);
 
-  // per-shape settings accordion — built directly from the registry,
-  // so a new shape module needs no edits here or in index.html
-  const container = document.getElementById('shape-checkboxes');
-  buildShapeAccordion(container);
+  // per-shape settings — one tab per registered shape, so a new
+  // shape module needs no edits here or in index.html
+  const shapeContainer = document.getElementById('shape-tabs');
+  buildShapeTabs(shapeContainer);
+
+  // presets — save/load/delete the full scene config (palette,
+  // orientation, time, per-shape settings), plus JSON export/import.
+  // See presets/PresetStore.js and presets/SceneSnapshot.js.
+  buildPresetsPanel(document.getElementById('presets-section'), {
+    getIntervalMs: () => parseInt(intervalInput.value, 10) || 4000,
+    getAutoAdvance: () => autoToggle.checked,
+    applyTimeControls: (time) => {
+      durationInput.value = String(time.durationMs);
+      intervalInput.value = String(time.intervalMs);
+      autoToggle.checked = time.autoAdvance;
+      restartAuto();
+    },
+    syncTopControls: (palette, orientation) => {
+      paletteSelect.value = palette;
+      orientationSelect.value = orientation;
+    },
+    refreshShapeSettings: () => {
+      shapeContainer.innerHTML = '';
+      buildShapeTabs(shapeContainer);
+    }
+  });
 
   document.getElementById('export-png-btn').addEventListener('click', () => {
     exportPNG(SceneManager);

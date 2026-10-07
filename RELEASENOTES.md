@@ -1,7 +1,25 @@
 # Release Notes
 
-## v0.2.0 — 2026-09-27
+## v0.2.0 — 2026-10-07
 
+- Redesigned the settings panel in a dark, minimalist editorial style
+  inspired by El Lissitzky / Proun / Constructivism: charcoal background,
+  warm off-white text, thin hairline dividers, and restrained red accents
+  in place of the previous boxed/bordered form look. No control, value,
+  or behavior changed — this is a visual pass only.
+- Shape selection is now a single row of six minimal geometric glyphs
+  (cube, cube-variable, circle, sphere, triangle, plane) instead of
+  named buttons, with the active shape marked by a small red underline
+  rather than a filled button background.
+- The size-range controls are now a single dual-handle slider (log-scaled,
+  0.05–10, drag, click-track, or arrow-key adjustable) in place of the two
+  separate min/max number fields, reporting through the same
+  `setSizeRange()` call as before.
+- Time and Presets are now plain labeled collapsibles (a `+`/`−` sign,
+  no surrounding box) instead of bordered accordion panels.
+- Shortened several panel labels: "Transition duration" → "Duration",
+  "Auto-advance" → "Auto", "Size range (× multiplier)" → "Size ×",
+  "Position spread" → "Spread", "Preset name" → "Name".
 - Added a per-shape **instance count**: each shape type can now have
   0–12 independent instances on screen at once, adjustable with a
   numeric stepper (-/+ buttons) in that shape's accordion section.

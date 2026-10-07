@@ -7,7 +7,7 @@
 export function wireAccordionToggle(header, body, chevron) {
   header.addEventListener('click', () => {
     body.hidden = !body.hidden;
-    chevron.textContent = body.hidden ? '▸' : '▾';
+    chevron.textContent = body.hidden ? '+' : '−';
   });
 }
 
@@ -44,7 +44,7 @@ export function createAccordionItem(titleText, opts = {}) {
 
   const chevron = document.createElement('span');
   chevron.className = 'accordion-chevron';
-  chevron.textContent = startOpen ? '▾' : '▸';
+  chevron.textContent = startOpen ? '−' : '+';
   header.appendChild(chevron);
 
   const body = document.createElement('div');

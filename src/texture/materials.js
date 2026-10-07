@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { makeGrainCanvas } from './PaperTexture.js';
+import { pickStructureTexture } from './PigmentLayer.js';
 
 // Every material's resting color, AND every tween frame's recomputed
 // color (in Tween.js), goes through shadeColor()/clampColor() — using
@@ -25,12 +25,16 @@ export function shadeColor(hex, mult) {
   return clampColor(new THREE.Color(hex).multiplyScalar(mult));
 }
 
+// Structure (paper grain + pigment coverage + micro variation) now
+// comes from PigmentLayer's pool — a small set of grayscale, hex- and
+// mult-independent canvases built once and reused everywhere. `hex`
+// and `mult` are unused here (kept in the signature for call-site
+// compatibility, and in case tier-specific structure is wanted down
+// the line); all the color this material shows comes from
+// materialSetMesh's `color: shadeColor(hex, mult)` below, exactly as
+// it always did — this function only ever supplied the `map`.
 export function grainTexture(hex, mult = 1) {
-  const shaded = shadeColor(hex, mult);
-  const c = makeGrainCanvas(128, 128, `#${shaded.getHexString()}`, { noiseStrength: 22, blotches: 3 });
-  const tex = new THREE.CanvasTexture(c);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  return tex;
+  return pickStructureTexture();
 }
 
 /**

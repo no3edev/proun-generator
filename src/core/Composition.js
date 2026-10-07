@@ -117,6 +117,10 @@ export const Composition = {
     transitionDuration = ms;
   },
 
+  getDuration() {
+    return transitionDuration;
+  },
+
   setVisible(type, visible) {
     (instances[type] || []).forEach((mesh) => { mesh.visible = visible; });
   },
