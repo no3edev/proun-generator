@@ -1,21 +1,16 @@
 import * as THREE from 'three';
 import { Palette } from '../palette/Palette.js';
+import { SceneConfig } from '../config/store.js';
 import { Billboard } from './Billboard.js';
 import { Tween } from './Tween.js';
 import { Composition } from './Composition.js';
 import { paperStructure, tintStructure } from '../texture/PaperTexture.js';
+import { renderAtScale } from '../export/hiRes.js';
+import { CAMERA, ORIENTATIONS, OVERLAY_OPACITY, MAX_FRAME_MS } from '../config/defaults.js';
 
 let renderer, scene, camera, stageWrap, clock;
 let overlayCanvas = null; // cached so PNG export can composite it in
-const OVERLAY_OPACITY = 0.5; // keep in sync with panel.css #paper-overlay { opacity }
-const frustumSize = 6;
-
-const ORIENTATIONS = {
-  landscape: { w: 720, h: 560 },
-  portrait: { w: 560, h: 720 },
-  square: { w: 640, h: 640 }
-};
-let orientation = 'landscape';
+const frustumSize = CAMERA.frustumSize;
 
 function makeCamera() {
   const aspect = stageWrap.clientWidth / stageWrap.clientHeight;
@@ -24,14 +19,12 @@ function makeCamera() {
     frustumSize / 2, -frustumSize / 2,
     0.1, 100
   );
-  // fixed oblique axonometric-style viewpoint
-  cam.position.set(4.2, 3.4, 5.2);
+  cam.position.set(...CAMERA.position);
   cam.lookAt(0, 0, 0);
   return cam;
 }
 
 function applyOrientation(name) {
-  orientation = name;
   const dims = ORIENTATIONS[name];
   const maxW = window.innerWidth * 0.92;
   const maxH = window.innerHeight * 0.86;
@@ -56,6 +49,7 @@ function applyOrientation(name) {
 function updateBackground() {
   renderer.setClearColor(new THREE.Color(Palette.active().paper), 1);
   const overlay = document.getElementById('paper-overlay');
+  overlay.style.opacity = String(OVERLAY_OPACITY);
   overlayCanvas = tintStructure(paperStructure(), Palette.active().paper);
   overlay.style.backgroundImage = `url(${overlayCanvas.toDataURL()})`;
   overlay.style.backgroundSize = 'cover';
@@ -63,7 +57,7 @@ function updateBackground() {
 
 function loop() {
   requestAnimationFrame(loop);
-  const dt = clock.getDelta() * 1000;
+  const dt = Math.min(clock.getDelta() * 1000, MAX_FRAME_MS);
   Tween.update(dt);
   renderer.render(scene, camera);
 }
@@ -81,24 +75,40 @@ export const SceneManager = {
     scene = new THREE.Scene();
     clock = new THREE.Clock();
 
-    applyOrientation('landscape');
+    applyOrientation(SceneConfig.get().orientation);
     updateBackground();
 
     camera = makeCamera();
     Billboard.computeFromCamera(camera);
     Composition.init(scene);
 
-    window.addEventListener('resize', () => applyOrientation(orientation));
+    // the config is the source of truth; the renderer just follows it
+    SceneConfig.subscribe((next, prev) => {
+      if (next.orientation !== prev.orientation) applyOrientation(next.orientation);
+      if (next.palette !== prev.palette) updateBackground();
+    });
+    window.addEventListener('resize', () => applyOrientation(SceneConfig.get().orientation));
   },
 
-  applyOrientation,
-  orientationNames() { return Object.keys(ORIENTATIONS); },
-  updateBackground,
   loop,
+
+  /**
+   * Renders one frame at `scale` x the on-screen resolution, hands the
+   * canvas to `draw` synchronously, then restores the renderer (see
+   * export/hiRes.js).
+   */
+  renderScaled(scale, draw) {
+    return renderAtScale(renderer, scale, () => renderer.render(scene, camera), draw);
+  },
+
+  /** The largest drawing buffer side the GPU will give us. */
+  getMaxRenderSize() {
+    const gl = renderer.getContext();
+    const viewport = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
+    return Math.min(viewport[0], viewport[1], gl.getParameter(gl.MAX_RENDERBUFFER_SIZE), renderer.capabilities.maxTextureSize);
+  },
 
   getRenderer() { return renderer; },
   getOverlayCanvas() { return overlayCanvas; },
-  getOverlayOpacity() { return OVERLAY_OPACITY; },
-
-  get orientation() { return orientation; }
+  getOverlayOpacity() { return OVERLAY_OPACITY; }
 };

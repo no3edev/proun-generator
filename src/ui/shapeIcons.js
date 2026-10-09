@@ -12,6 +12,7 @@ const ICONS = {
   circle: `<svg viewBox="0 0 24 24" ${S}><circle cx="12" cy="12" r="8"/></svg>`,
   sphere: `<svg viewBox="0 0 24 24" ${S}><circle cx="12" cy="12" r="8"/><ellipse cx="12" cy="12" rx="8" ry="3" /><path d="M12 4v16"/></svg>`,
   triangle: `<svg viewBox="0 0 24 24" ${S}><path d="M5 19V5l14 14Z"/></svg>`,
+  rod: `<svg viewBox="0 0 24 24" ${S}><path d="M4.5 19.5 19.5 4.5" stroke-width="2.6" stroke-linecap="square"/></svg>`,
   plane: `<svg viewBox="0 0 24 24" ${S}><path d="M3 15.5 8.5 7H21l-5.5 8.5Z" fill="currentColor" fill-opacity=".18"/></svg>`
 };
 
@@ -20,5 +21,28 @@ export function shapeIcon(type) {
   wrap.className = 'shape-icon';
   wrap.setAttribute('aria-hidden', 'true');
   wrap.innerHTML = ICONS[type] || ICONS.circle;
+  return wrap;
+}
+
+/** Small gear glyph for the per-shape settings toggle. */
+export function settingsIcon() {
+  const wrap = document.createElement('span');
+  wrap.className = 'shape-icon settings-icon';
+  wrap.setAttribute('aria-hidden', 'true');
+  wrap.innerHTML = `<svg viewBox="0 0 24 24" ${S}><circle cx="12" cy="12" r="3.2"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>`;
+  return wrap;
+}
+
+/**
+ * Padlock glyph for the per-shape lock toggle: shackle closed when locked,
+ * lifted when not.
+ * @param {boolean} locked
+ */
+export function lockIcon(locked) {
+  const wrap = document.createElement('span');
+  wrap.className = 'shape-icon lock-icon';
+  wrap.setAttribute('aria-hidden', 'true');
+  const shackle = locked ? 'M8 10.5V8a4 4 0 0 1 8 0v2.5' : 'M8 10.5V8a4 4 0 0 1 7.6-1.8';
+  wrap.innerHTML = `<svg viewBox="0 0 24 24" ${S}><rect x="5.5" y="10.5" width="13" height="9.5"${locked ? ' fill="currentColor" fill-opacity=".25"' : ''}/><path d="${shackle}"/></svg>`;
   return wrap;
 }

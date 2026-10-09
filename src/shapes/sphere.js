@@ -19,8 +19,6 @@ export default {
 
   create(hex) {
     // low-poly icosahedron with per-face vertex colors standing in
-    // for flat shading (MeshBasicMaterial ignores real lights)
-    // low-poly icosahedron with per-face vertex colors standing in
     // for flat shading (MeshBasicMaterial ignores real lights).
     // Modern three.js already builds this non-indexed; toNonIndexed()
     // is only called as a defensive no-op for older/indexed builds.
@@ -28,40 +26,46 @@ export default {
     const geo = rawGeo.index ? rawGeo.toNonIndexed() : rawGeo;
     const pos = geo.attributes.position;
     const vertexCount = pos.count;
+    const faceCount = vertexCount / 3;
     const colors = new Float32Array(vertexCount * 3);
-    const shadeFactors = new Float32Array(vertexCount);
+    const faceFactors = new Float32Array(faceCount); // light/dark factor per facet
     const lightDir = new THREE.Vector3(0.4, 0.85, 0.35).normalize();
-    const base = new THREE.Color(hex);
     const vA = new THREE.Vector3(), vB = new THREE.Vector3(), vC = new THREE.Vector3();
+    const e1 = new THREE.Vector3(), e2 = new THREE.Vector3(), normal = new THREE.Vector3();
 
-    for (let i = 0; i < vertexCount; i += 3) {
+    for (let f = 0; f < faceCount; f++) {
+      const i = f * 3;
       vA.fromBufferAttribute(pos, i);
       vB.fromBufferAttribute(pos, i + 1);
       vC.fromBufferAttribute(pos, i + 2);
-      const normal = new THREE.Vector3()
-        .crossVectors(new THREE.Vector3().subVectors(vC, vB), new THREE.Vector3().subVectors(vA, vB))
-        .normalize();
-      const factor = 0.55 + (normal.dot(lightDir) * 0.5 + 0.5) * 0.65;
-      for (let j = 0; j < 3; j++) {
-        shadeFactors[i + j] = factor;
-        const c = clampColor(base.clone().multiplyScalar(factor));
-        colors[(i + j) * 3] = c.r;
-        colors[(i + j) * 3 + 1] = c.g;
-        colors[(i + j) * 3 + 2] = c.b;
-      }
+      normal.crossVectors(e1.subVectors(vC, vB), e2.subVectors(vA, vB)).normalize();
+      faceFactors[f] = 0.55 + (normal.dot(lightDir) * 0.5 + 0.5) * 0.65;
     }
-    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const colorAttr = new THREE.BufferAttribute(colors, 3);
+    geo.setAttribute('color', colorAttr);
 
     const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true }));
-    mesh.userData.baseHex = hex;
     mesh.userData.shapeType = TYPE;
-    mesh.userData.isVertexColored = true;
-    mesh.userData.shadeFactors = shadeFactors;
+    mesh.userData.baseColor = new THREE.Color(hex);
+
+    // Shading contract (see texture/materials.js): repaint every facet from
+    // `base`. One computation per facet (shared by its 3 vertices), no
+    // allocation — this runs every frame of a transition.
+    const shaded = new THREE.Color();
+    mesh.userData.applyShade = (base) => {
+      for (let f = 0; f < faceCount; f++) {
+        shaded.copy(base).multiplyScalar(faceFactors[f]);
+        clampColor(shaded);
+        for (let j = 0; j < 3; j++) colorAttr.setXYZ(f * 3 + j, shaded.r, shaded.g, shaded.b);
+      }
+      colorAttr.needsUpdate = true;
+    };
+    mesh.userData.applyShade(mesh.userData.baseColor);
     return mesh;
   },
 
-  randomScale() {
-    const s = 0.6 + Math.random() * 1.0;
+  randomScale(rng) {
+    const s = 0.6 + rng() * 1.0;
     return new THREE.Vector3(s, s, s);
   }
 };

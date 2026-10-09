@@ -13,19 +13,6 @@
 import { blurredNoise, fiberLines } from './noise.js';
 import { applyMicroVariation } from './MicroVariation.js';
 
-export function hexToRgb(hex) {
-  const v = hex.replace('#', '');
-  return {
-    r: parseInt(v.substring(0, 2), 16),
-    g: parseInt(v.substring(2, 4), 16),
-    b: parseInt(v.substring(4, 6), 16)
-  };
-}
-
-export function clamp8(v) {
-  return Math.max(0, Math.min(255, v));
-}
-
 const SIZE = 512;
 let cached = null;
 

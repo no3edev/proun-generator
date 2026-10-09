@@ -1,5 +1,5 @@
 import { PresetStore, MAX_PRESETS } from '../presets/PresetStore.js';
-import { captureSnapshot, applySnapshot } from '../presets/SceneSnapshot.js';
+import { SceneConfig } from '../config/store.js';
 import { createAccordionItem } from './accordion.js';
 
 function downloadText(filename, text) {
@@ -30,20 +30,14 @@ function formatDate(iso) {
  * row, capped at MAX_PRESETS — saving past the cap drops the oldest),
  * and Export all / Import.
  *
- * `intervalMs`/`autoAdvance` live only as DOM state in Panel.js (no
- * module owns them — see SceneSnapshot.js), so this needs a few hooks
- * back into Panel.js rather than reaching into its DOM directly.
+ * A preset is a stored SceneConfig: Save writes the current config,
+ * Load replaces it (the panel controls and the scene follow the config,
+ * so there's nothing to sync here). Presets saved with a seed restore the
+ * exact composition; older ones load with a fresh seed.
  *
  * @param {HTMLElement} container
- * @param {{
- *   getIntervalMs: () => number,
- *   getAutoAdvance: () => boolean,
- *   applyTimeControls: (time: {durationMs:number, intervalMs:number, autoAdvance:boolean}) => void,
- *   syncTopControls: (palette: string, orientation: string) => void,
- *   refreshShapeSettings: () => void
- * }} hooks
  */
-export function buildPresetsPanel(container, hooks) {
+export function buildPresetsPanel(container) {
   const { item, body } = createAccordionItem('Presets');
 
   // --- save ---
@@ -102,10 +96,7 @@ export function buildPresetsPanel(container, hooks) {
   }
 
   function loadPreset(p) {
-    const applied = applySnapshot(p);
-    hooks.syncTopControls(applied.palette, applied.orientation);
-    hooks.applyTimeControls(applied.time);
-    hooks.refreshShapeSettings();
+    SceneConfig.replace(p);
     setStatus(`Loaded "${p.name}".`);
   }
 
@@ -166,10 +157,7 @@ export function buildPresetsPanel(container, hooks) {
   }
 
   saveBtn.addEventListener('click', () => {
-    const snapshot = captureSnapshot({
-      intervalMs: hooks.getIntervalMs(),
-      autoAdvance: hooks.getAutoAdvance()
-    });
+    const snapshot = SceneConfig.toJSON();
     const name = nameInput.value.trim() || `Preset ${PresetStore.list().length + 1}`;
     const wasFull = PresetStore.list().length >= MAX_PRESETS;
     PresetStore.save(name, snapshot);

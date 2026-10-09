@@ -1,0 +1,17 @@
+{
+  // Opt-in type checking: only files that start with `// @ts-check` are
+  // reported (checkJs is off), and those are checked strictly. Run
+  // `npm run typecheck`. Plain JS stays plain JS; this adds no build step.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM"],
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.js"]
+}

@@ -38,7 +38,8 @@ html, body {
   inset: 0;
   pointer-events: none;
   mix-blend-mode: multiply;
-  opacity: 0.5;
+  /* opacity is set from JS (config/defaults.js OVERLAY_OPACITY) so the
+     on-screen overlay and the PNG export share one value */
 }
 #hint {
   position: absolute;
@@ -153,6 +154,15 @@ button.primary:hover { background: #d3443a; border-color: #d3443a; }
 button.secondary { border-color: rgba(233, 228, 216, 0.35); }
 .button-stack { display: flex; flex-direction: column; gap: 10px; padding-top: 22px; border-top: 1px solid var(--panel-line); }
 
+.export-row { display: flex; gap: 8px; align-items: stretch; }
+.export-row #export-png-btn { flex: 1; min-width: 0; }
+.export-row select { flex: 0 0 62px; width: 62px; }
+.advance-row { display: flex; gap: 8px; }
+.advance-row #advance-btn { flex: 1; min-width: 0; white-space: nowrap; }
+.step-btn { flex: 0 0 38px; padding: 11px 0; font-size: 16px; letter-spacing: 0; line-height: 1; }
+button:disabled { opacity: 0.3; cursor: default; }
+button:disabled:hover { border-color: rgba(233, 228, 216, 0.35); }
+
 .row { display: flex; gap: 12px; align-items: center; }
 .row label { margin: 0; }
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -195,8 +205,11 @@ input[type="range"] { accent-color: var(--accent); }
 
 /* shape tabs: one row of glyphs, red tick under the active one */
 .tabs-nav {
+  /* one row of equal columns for however many shapes are registered —
+     a new shape must not need a CSS edit (it used to be hard-coded to 6) */
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   gap: 0;
   margin-bottom: 26px;
 }
@@ -224,6 +237,21 @@ input[type="range"] { accent-color: var(--accent); }
 .shape-icon { display: inline-block; width: 20px; height: 20px; }
 .shape-icon svg { width: 100%; height: 100%; display: block; }
 .tab-panel .field:last-child { margin-bottom: 0; }
+
+/* per-shape settings toggle: Visible row + gear; count/size/spread collapsed below */
+.vis-row { margin-bottom: 0; }
+.vis-row .lock-toggle { margin-left: auto; }
+.vis-row .settings-toggle { margin-left: 4px; }
+.lock-toggle .shape-icon { width: 16px; height: 16px; }
+.lock-toggle.active { color: var(--accent); }
+.icon-btn:disabled { opacity: 0.3; cursor: default; }
+.icon-btn:disabled:hover { color: var(--panel-dim); }
+.shape-props.locked { opacity: 0.4; }
+.settings-toggle .shape-icon { width: 14px; height: 14px; vertical-align: middle; }
+.settings-toggle.active,
+.settings-toggle.active:hover { color: var(--accent); }
+.shape-props { padding-top: 20px; }
+.shape-props[hidden] { display: none; }
 
 /* count / size / spread */
 .count-row { gap: 6px; }

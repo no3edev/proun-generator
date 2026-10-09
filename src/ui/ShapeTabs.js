@@ -1,38 +1,90 @@
 import { shapeRegistry } from '../shapes/registry.js';
-import { ShapeSettings, MIN_COUNT, MAX_COUNT } from '../settings/ShapeSettings.js';
-import { Composition } from '../core/Composition.js';
+import { SceneConfig } from '../config/store.js';
 import { createTabs } from './tabs.js';
-import { shapeIcon } from './shapeIcons.js';
+import { shapeIcon, settingsIcon, lockIcon } from './shapeIcons.js';
+import { Composition } from '../core/Composition.js';
+import { SHAPE_LIMITS } from '../config/defaults.js';
+
+const MIN_COUNT = SHAPE_LIMITS.count.min;
+const MAX_COUNT = SHAPE_LIMITS.count.max;
 
 /**
  * Builds one tab per registered shape into `container`: a visibility
- * checkbox, an instance count (with -/+ buttons), a size-multiplier
+ * checkbox plus a settings toggle. The toggle reveals (collapsed by
+
+ * default) an instance count (with -/+ buttons), a size-multiplier
  * min/max range, and a position-spread slider (0 = origin, 2 = double
- * the original edge bounds). Nothing here is shape-specific — a new
+ * the original edge bounds), plus (for shapes that actually rotate) a
+ * checkbox that snaps every rotation to 45-degree steps. A padlock freezes the type exactly as it is on
+ * screen (Composition.lock): later advances re-roll everything else around
+ * it, and its count/size/spread controls are disabled while it's locked
+ * (they're baked into the frozen instances). Nothing here is shape-specific — a new
  * shape module needs no edits to this file, same as everywhere else
  * in the registry-driven parts of the app.
+ *
+ * Controls only write to the SceneConfig (setShape) and read their
+ * initial values from it; the scene reacts to the config, not to this file.
  */
+
+// One entry per built shape panel, so other parts of the UI can collapse
+// open shape settings (accordion behaviour). Reset on every rebuild.
+let settingsPanels = [];
+
+/**
+ * Collapses every open shape-settings block, except the one whose panel
+ * contains `exceptEl` (so interacting inside the open shape — its Visible
+ * box, gear, count/size/spread — never closes it).
+ */
+export function collapseShapeSettings(exceptEl = null) {
+  settingsPanels.forEach((p) => {
+    if (exceptEl && p.panel.contains(exceptEl)) return;
+    p.setOpen(false);
+  });
+}
+
 export function buildShapeTabs(container) {
+  settingsPanels = [];
   const tabs = shapeRegistry.map((shape) => {
-    const settings = ShapeSettings.get(shape.type);
+    // always read through current() — the config is replaced, never mutated
+    const current = () => SceneConfig.get().shapes[shape.type];
+    const setShape = (patch) => SceneConfig.update({ shapes: { [shape.type]: patch } });
+    const settings = current(); // initial values only
     const panel = document.createElement('div');
 
     // --- visibility ---
     const visField = document.createElement('div');
-    visField.className = 'field row';
+    visField.className = 'field row vis-row';
     const visBox = document.createElement('input');
     visBox.type = 'checkbox';
     visBox.id = `vis-${shape.type}`;
     visBox.checked = settings.visible;
-    visBox.addEventListener('change', () => {
-      ShapeSettings.setVisible(shape.type, visBox.checked);
-      Composition.setVisible(shape.type, visBox.checked);
-    });
+    visBox.addEventListener('change', () => setShape({ visible: visBox.checked }));
     const visLabel = document.createElement('label');
     visLabel.htmlFor = visBox.id;
     visLabel.textContent = 'Visible';
     visField.appendChild(visBox);
     visField.appendChild(visLabel);
+
+    // --- lock: freeze this type as it is, while the others re-roll ---
+    const lockBtn = document.createElement('button');
+    lockBtn.type = 'button';
+    lockBtn.className = 'icon-btn lock-toggle';
+    lockBtn.addEventListener('click', () => {
+      if (current().locked) Composition.unlock(shape.type);
+      else Composition.lock(shape.type);
+      syncLock();
+    });
+    visField.appendChild(lockBtn);
+
+    // --- settings toggle: count / size / spread stay hidden until clicked ---
+    const settingsBtn = document.createElement('button');
+    settingsBtn.type = 'button';
+    settingsBtn.className = 'icon-btn settings-toggle';
+    settingsBtn.title = `${shape.label} settings`;
+    settingsBtn.setAttribute('aria-label', `${shape.label} settings`);
+    settingsBtn.setAttribute('aria-expanded', 'false');
+    settingsBtn.appendChild(settingsIcon());
+    visField.appendChild(settingsBtn);
 
     // --- instance count ---
     const countField = document.createElement('div');
@@ -60,15 +112,15 @@ export function buildShapeTabs(container) {
     plusBtn.textContent = '+';
 
     function pushCount(newCount) {
-      ShapeSettings.setCount(shape.type, newCount);
-      Composition.setCount(shape.type, ShapeSettings.get(shape.type).count);
-      countInput.value = String(ShapeSettings.get(shape.type).count);
+      setShape({ count: newCount });
+      countInput.value = String(current().count); // reflects clamping
+      syncLock(); // a type with no instances can't be locked
     }
     minusBtn.addEventListener('click', () => pushCount(parseInt(countInput.value, 10) - 1));
     plusBtn.addEventListener('click', () => pushCount(parseInt(countInput.value, 10) + 1));
     countInput.addEventListener('change', () => {
       const v = parseInt(countInput.value, 10);
-      pushCount(Number.isNaN(v) ? settings.count : v);
+      pushCount(Number.isNaN(v) ? current().count : v);
     });
 
     countRow.appendChild(minusBtn);
@@ -81,9 +133,9 @@ export function buildShapeTabs(container) {
     // Logarithmic mapping so the useful 0.5–2× zone isn't squeezed into
     // the left edge of a 0.05–10 track. Values snap to 0.05 like the
     // old number fields did.
-    const SIZE_LO = 0.05;
-    const SIZE_HI = 10;
-    const SIZE_STEP = 0.05;
+    const SIZE_LO = SHAPE_LIMITS.size.min;
+    const SIZE_HI = SHAPE_LIMITS.size.max;
+    const SIZE_STEP = SHAPE_LIMITS.size.step;
     const LOG_SPAN = Math.log(SIZE_HI / SIZE_LO);
     const toT = (v) => Math.log(Math.max(SIZE_LO, v) / SIZE_LO) / LOG_SPAN;
     const fromT = (t) => {
@@ -136,9 +188,9 @@ export function buildShapeTabs(container) {
     }
 
     function pushSizeRange(min, max) {
-      ShapeSettings.setSizeRange(shape.type, min, max);
+      setShape({ sizeMin: min, sizeMax: max });
       // reflect any clamping back into the UI
-      const s = ShapeSettings.get(shape.type);
+      const s = current();
       curMin = s.sizeMin;
       curMax = s.sizeMax;
       paintSize();
@@ -213,23 +265,82 @@ export function buildShapeTabs(container) {
 
     const spreadSlider = document.createElement('input');
     spreadSlider.type = 'range';
-    spreadSlider.min = '0';
-    spreadSlider.max = '2';
-    spreadSlider.step = '0.01';
+    spreadSlider.min = String(SHAPE_LIMITS.spread.min);
+    spreadSlider.max = String(SHAPE_LIMITS.spread.max);
+    spreadSlider.step = String(SHAPE_LIMITS.spread.step);
     spreadSlider.value = String(settings.spread);
     spreadSlider.addEventListener('input', () => {
       const v = parseFloat(spreadSlider.value);
-      ShapeSettings.setSpread(shape.type, v);
+      setShape({ spread: v });
       spreadValue.textContent = v.toFixed(2);
     });
 
     spreadField.appendChild(spreadLabel);
     spreadField.appendChild(spreadSlider);
 
+    // --- snap rotation to 45 degree steps (not for shapes that always face
+    // the camera: they have no rotation, so the option would do nothing) ---
+    /** @type {HTMLInputElement | null} */
+    let snapBox = null;
+    /** @type {HTMLElement | null} */
+    let snapField = null;
+    if (!shape.facesCamera) {
+      snapField = document.createElement('div');
+      snapField.className = 'field row snap-row';
+      snapBox = document.createElement('input');
+      snapBox.type = 'checkbox';
+      snapBox.id = `snap-${shape.type}`;
+      snapBox.checked = !!settings.snapRotation;
+      snapBox.addEventListener('change', () => setShape({ snapRotation: snapBox.checked }));
+      const snapLabel = document.createElement('label');
+      snapLabel.htmlFor = snapBox.id;
+      snapLabel.textContent = 'Snap rotation to 45°';
+      snapLabel.title = 'Every rotation angle becomes a multiple of 45° (applies at the next advance)';
+      snapField.appendChild(snapBox);
+      snapField.appendChild(snapLabel);
+    }
+
+    const props = document.createElement('div');
+    props.className = 'shape-props';
+    props.hidden = true; // collapsed by default
+    props.appendChild(countField);
+    props.appendChild(sizeField);
+    props.appendChild(spreadField);
+    if (snapField) props.appendChild(snapField);
+
+    function setOpen(open) {
+      props.hidden = !open;
+      settingsBtn.classList.toggle('active', open);
+      settingsBtn.setAttribute('aria-expanded', String(open));
+    }
+    settingsBtn.addEventListener('click', () => setOpen(props.hidden));
+    settingsPanels.push({ panel, setOpen });
+
+    // Repaints everything that depends on the lock: the padlock itself, and
+    // the controls that are baked into a locked type's frozen instances.
+    // Called after anything that can change it; the config enforces it too
+    // (a locked type's count is its instances' length), so this is feedback,
+    // not the safeguard.
+    function syncLock() {
+      const locked = !!current().locked;
+      const label = locked ? `Unlock ${shape.label}` : `Lock ${shape.label}`;
+      lockBtn.classList.toggle('active', locked);
+      lockBtn.setAttribute('aria-pressed', String(locked));
+      lockBtn.setAttribute('aria-label', label);
+      lockBtn.title = locked
+        ? `${label} — it will be generated from the seed again at the next advance`
+        : `${label} — keep these exactly as they are while the others re-roll`;
+      lockBtn.disabled = !locked && current().count < 1;
+      lockBtn.replaceChildren(lockIcon(locked));
+      props.classList.toggle('locked', locked);
+      props.inert = locked; // also blocks keyboard focus, incl. the dual-range handles
+      [minusBtn, plusBtn, countInput, spreadSlider, snapBox].forEach((el) => { if (el) el.disabled = locked; });
+      if (locked) countInput.value = String(current().count);
+    }
+
     panel.appendChild(visField);
-    panel.appendChild(countField);
-    panel.appendChild(sizeField);
-    panel.appendChild(spreadField);
+    panel.appendChild(props);
+    syncLock();
 
     return { label: shape.label, panel, icon: shapeIcon(shape.type) };
   });

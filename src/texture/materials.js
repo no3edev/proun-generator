@@ -1,16 +1,27 @@
 import * as THREE from 'three';
 import { pickStructureTexture } from './PigmentLayer.js';
 
-// Every material's resting color, AND every tween frame's recomputed
-// color (in Tween.js), goes through shadeColor()/clampColor() — using
-// the exact same math in both places is what keeps a transition's
-// starting appearance identical to the shape's resting appearance, so
-// there's no snap the instant a tween begins. Do not reintroduce a
-// separate sRGB-integer path here (there used to be one, `shadeHex`) —
-// THREE.Color's internal representation is linear (color management
-// converts sRGB hex -> linear on assignment), so mixing an sRGB-space
-// multiply with a linear-space multiply produces two different colors
-// for the same (hex, multiplier) pair.
+// COLOR / SHADING CONTRACT
+//
+// Every mesh a shape's create() returns must carry, on `mesh.userData`:
+//   shapeType   the shape's `type`
+//   baseColor   THREE.Color — the un-shaded color currently applied
+//   applyShade  (base: THREE.Color) => void — repaints the mesh from `base`
+//               through that shape's own shading scheme
+// Nothing outside this file (Tween, Composition) knows HOW a shape is
+// shaded; they call paintMesh(mesh, color). materialSetMesh() installs the
+// contract for material-based shapes (one tinted material per face group);
+// a shape with unusual shading (the sphere's per-vertex colors) installs
+// its own applyShade. Add a new shading scheme by following the contract —
+// no other file needs to change.
+//
+// Every resting color and every tween frame goes through
+// shadeColor()/clampColor()-equivalent math, so a transition's first frame
+// is identical to the shape's resting appearance (no snap). Do not
+// reintroduce a separate sRGB-integer path (there used to be one,
+// `shadeHex`) — THREE.Color is linear internally, so mixing an sRGB-space
+// multiply with a linear-space one gives two different colors for the same
+// (hex, multiplier) pair.
 
 /** Clamps a THREE.Color's channels to [0,1] in place and returns it. */
 export function clampColor(color) {
@@ -25,42 +36,83 @@ export function shadeColor(hex, mult) {
   return clampColor(new THREE.Color(hex).multiplyScalar(mult));
 }
 
-// Structure (paper grain + pigment coverage + micro variation) now
-// comes from PigmentLayer's pool — a small set of grayscale, hex- and
-// mult-independent canvases built once and reused everywhere. `hex`
-// and `mult` are unused here (kept in the signature for call-site
-// compatibility, and in case tier-specific structure is wanted down
-// the line); all the color this material shows comes from
-// materialSetMesh's `color: shadeColor(hex, mult)` below, exactly as
-// it always did — this function only ever supplied the `map`.
-export function grainTexture(hex, mult = 1) {
+// Structure (paper grain + pigment coverage + micro variation) comes from
+// PigmentLayer's pool — a small set of grayscale, color-independent canvases
+// built once and reused everywhere. All the color a material shows comes
+// from materialSetMesh's `color: shadeColor(hex, mult)`; this only supplies
+// the `map`.
+export function grainTexture() {
   return pickStructureTexture();
 }
+
+// scratch color reused by every applyShade (calls are synchronous), so
+// repainting a mesh each animation frame allocates nothing
+const scratch = new THREE.Color();
 
 /**
  * Builds a THREE.Mesh whose material(s) are grain-textured tints of
  * `hex`, one per entry in `shadeMultipliers`. A single multiplier
  * collapses to one plain (non-array) material; more than one produces
  * a material array matching the geometry's face groups (e.g. a cube's
- * 6 faces, or an extruded shape's sides + caps).
- *
- * Tags the mesh's userData so Tween.js knows how to re-tint it as
- * color eases between states, and so CollisionResolver.js knows
- * which shape type it is.
+ * 6 faces, or an extruded shape's sides + caps). Installs the shading
+ * contract described at the top of this file.
  *
  * @param {THREE.BufferGeometry} geo
  * @param {string} hex
  * @param {number[]} shadeMultipliers
  * @param {string} shapeType
+ * @param {object} [materialOptions] extra MeshBasicMaterial options (e.g. { side })
  */
-export function materialSetMesh(geo, hex, shadeMultipliers, shapeType) {
+export function materialSetMesh(geo, hex, shadeMultipliers, shapeType, materialOptions = {}) {
   const mats = shadeMultipliers.map((mult) => new THREE.MeshBasicMaterial({
+    ...materialOptions,
     color: shadeColor(hex, mult),
-    map: grainTexture(hex, mult)
+    map: grainTexture()
   }));
   const mesh = new THREE.Mesh(geo, mats.length === 1 ? mats[0] : mats);
-  mesh.userData.baseHex = hex;
-  mesh.userData.shadeMultipliers = shadeMultipliers;
   mesh.userData.shapeType = shapeType;
+  mesh.userData.baseColor = new THREE.Color(hex);
+  mesh.userData.applyShade = (base) => {
+    for (let i = 0; i < mats.length; i++) {
+      mats[i].color.copy(clampColor(scratch.copy(base).multiplyScalar(shadeMultipliers[i])));
+    }
+  };
   return mesh;
+}
+
+/**
+ * Paints `mesh` with `color` (the un-shaded base color) through the mesh's
+ * own shading scheme, and records it as the mesh's current base color.
+ * The one entry point for recoloring any shape.
+ */
+export function paintMesh(mesh, color) {
+  mesh.userData.baseColor.copy(color);
+  mesh.userData.applyShade(color);
+}
+
+/**
+ * Frees a mesh's GPU resources. Call when an instance is removed for
+ * good — three.js never releases geometry, materials or textures on its
+ * own, so every removed instance used to leak. Safe because each material
+ * owns its own texture (pickStructureTexture() returns a fresh
+ * CanvasTexture per call); the shared pool canvases are not touched.
+ */
+export function disposeMesh(mesh) {
+  if (mesh.geometry) mesh.geometry.dispose();
+  const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  mats.forEach((m) => {
+    if (!m) return;
+    if (m.map) m.map.dispose();
+    m.dispose();
+  });
+}
+
+// Face shading shared by every BoxGeometry-based shape (cube-fixed,
+// cube-variable, plane). Order matches BoxGeometry's default face
+// groups: +x -x +y -y +z -z.
+export const BOX_SHADE_MULTIPLIERS = [0.82, 0.82, 1.05, 0.62, 1.0, 0.7];
+
+/** A unit box mesh with the standard face shading — the body of every box-based shape's create(). */
+export function boxMesh(hex, shapeType) {
+  return materialSetMesh(new THREE.BoxGeometry(1, 1, 1), hex, BOX_SHADE_MULTIPLIERS, shapeType);
 }

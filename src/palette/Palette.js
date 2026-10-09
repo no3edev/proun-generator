@@ -1,22 +1,17 @@
-import { palettes, DEFAULT_PALETTE } from './palettes.js';
+import { palettes } from './palettes.js';
+import { SceneConfig } from '../config/store.js';
 
-let activeName = DEFAULT_PALETTE;
-
+// Palette DATA lives in palettes.js; which palette is active is part of
+// the SceneConfig (this module holds no state of its own).
 export const Palette = {
   names() {
     return Object.keys(palettes);
   },
-  setActive(name) {
-    if (palettes[name]) activeName = name;
+  get(name) {
+    return palettes[name];
   },
-  activeName() {
-    return activeName;
-  },
+  /** The palette selected in the current SceneConfig. */
   active() {
-    return palettes[activeName];
-  },
-  randomAccent() {
-    const a = palettes[activeName].accents;
-    return a[Math.floor(Math.random() * a.length)];
+    return palettes[SceneConfig.get().palette];
   }
 };

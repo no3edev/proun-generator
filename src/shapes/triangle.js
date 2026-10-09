@@ -26,11 +26,11 @@ export default {
   },
 
   // elongated in x/y independently, mild depth variation
-  randomScale() {
+  randomScale(rng) {
     return new THREE.Vector3(
-      0.6 + Math.random() * 1.6,
-      0.6 + Math.random() * 1.6,
-      0.6 + Math.random() * 1.0
+      0.6 + rng() * 1.6,
+      0.6 + rng() * 1.6,
+      0.6 + rng() * 1.0
     );
   }
 };

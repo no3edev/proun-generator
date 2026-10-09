@@ -1,101 +1,134 @@
 import * as THREE from 'three';
 import { Palette } from '../palette/Palette.js';
+import { SceneConfig } from '../config/store.js';
+import { randomSeed } from '../generator/rng.js';
+import { generateLayout } from '../generator/generate.js';
 import { Billboard } from './Billboard.js';
 import { Tween } from './Tween.js';
+import { paintMesh, disposeMesh } from '../texture/materials.js';
 import { shapeRegistry, getShape } from '../shapes/registry.js';
-import { computeAABB, resolveCollisions } from '../collision/CollisionResolver.js';
-import { ShapeSettings } from '../settings/ShapeSettings.js';
 
-// Owns a variable number of instances per registered shape type (see
-// ShapeSettings.count), each with its own independent transform and
-// color — instances of the same type never share a random draw, so
-// they never move in sync or land on the same color. `advance()` —
-// the single entry point every trigger (click / key / timer / script)
-// calls — re-randomizes every instance of every type together, then
-// resolves any genuine 3D collisions (between different types AND
-// between instances of the same type) before easing anything.
-// Checkboxes in the panel only toggle visibility; hidden shapes keep
-// evolving underneath so they're mid-composition whenever shown again.
+// The scene view: keeps the live meshes in step with the SceneConfig.
+// It owns no settings of its own — counts, visibility, duration and the
+// palette are all read from the config, and it reacts to config changes:
+//
+//   count changed       -> add instances (placed at their generated
+//                          position) / remove instances (disposed, any
+//                          in-flight tween canceled)
+//   visible changed     -> toggle mesh.visible
+//   seed or palette     -> regenerate the layout and ease every mesh to it
+//   replace() (preset)  -> likewise, even if the seed happens to match
+//
+// What the layout IS comes from generator/generate.js — a pure function of
+// (config, palette, shapes, camera). Hidden shapes keep evolving
+// underneath, so they're mid-composition whenever shown again.
+//
+// Requires Billboard.computeFromCamera() to have run before init()
+// (SceneManager.init does this).
 
 let instances = {}; // type -> THREE.Mesh[]
 let sceneRef = null;
-let transitionDuration = 1100;
+let unsubscribe = null;
 
-function bounds() {
-  // the full-spread (spread = 1) region shapes are placed within; a
-  // shape's own ShapeSettings.spread (0..2) scales this per-axis —
-  // below 1 pulls toward the origin, above 1 extends past this edge
-  // toward the origin. z is wider than a purely cosmetic range since
-  // depth is an active axis collision resolution can push shapes along
-  return { x: 1.9, y: 1.4, z: 1.5 };
+function layoutFor(config) {
+  return generateLayout({
+    config,
+    palette: Palette.get(config.palette),
+    shapeDefs: shapeRegistry,
+    view: { depthAxis: Billboard.direction(), billboard: Billboard.get() }
+  });
 }
 
-function randomTarget(shape) {
-  const b = bounds();
-  const spread = ShapeSettings.get(shape.type).spread;
-  const sizeMult = ShapeSettings.randomSizeMultiplier(shape.type);
+// LayoutEntry -> the shape Tween.add() takes
+function toTarget(entry) {
   return {
-    position: new THREE.Vector3(
-      (Math.random() * 2 - 1) * b.x * spread,
-      (Math.random() * 2 - 1) * b.y * spread,
-      (Math.random() * 2 - 1) * b.z * spread
-    ),
-    rotation: {
-      // mostly grid-aligned, occasionally tilted — a nod to the mix
-      // of orthogonal and diagonal forms in Prouns. Unused by any
-      // shape with facesCamera: true.
-      x: (Math.random() < 0.7 ? 0 : Math.random() * Math.PI),
-      y: Math.random() * Math.PI * 2,
-      z: (Math.random() < 0.7 ? 0 : (Math.random() - 0.5) * 0.6)
-    },
-    scale: shape.randomScale().multiplyScalar(sizeMult),
-    hex: Palette.randomAccent()
+    position: new THREE.Vector3(...entry.position),
+    rotation: { x: entry.rotation[0], y: entry.rotation[1], z: entry.rotation[2] },
+    scale: new THREE.Vector3(...entry.scale),
+    hex: entry.hex
   };
 }
 
-// `instanceIndex` ties a candidate back to a specific mesh in
-// instances[type][instanceIndex] — each call still draws its own
-// independent random position/rotation/scale/color via randomTarget()
-function buildCandidate(shape, instanceIndex) {
-  const raw = randomTarget(shape);
-  const quat = shape.facesCamera
-    ? Billboard.get().clone()
-    : new THREE.Quaternion().setFromEuler(new THREE.Euler(raw.rotation.x, raw.rotation.y, raw.rotation.z));
-  return {
-    type: shape.type,
-    instanceIndex,
-    position: raw.position,
-    rotation: raw.rotation,
-    scale: raw.scale,
-    hex: raw.hex,
-    box: computeAABB(shape.localHalfExtents, raw.position, quat, raw.scale)
-  };
-}
-
-function applyImmediate(mesh, target, shape) {
-  mesh.position.copy(target.position);
+function place(mesh, entry, shape) {
+  const t = toTarget(entry);
+  mesh.position.copy(t.position);
   if (shape.facesCamera) {
     mesh.quaternion.copy(Billboard.get());
   } else {
-    mesh.quaternion.setFromEuler(new THREE.Euler(target.rotation.x, target.rotation.y, target.rotation.z));
+    mesh.quaternion.setFromEuler(new THREE.Euler(t.rotation.x, t.rotation.y, t.rotation.z));
   }
-  mesh.scale.copy(target.scale);
-  mesh.userData.baseColor = new THREE.Color(target.hex);
+  mesh.scale.copy(t.scale);
+  paintMesh(mesh, new THREE.Color(t.hex));
 }
 
-// one candidate per instance of every shape type, collision-resolved
-// against every other candidate regardless of type — two cubes (or a
-// cube and a sphere) are treated identically by CollisionResolver
-function allCandidates() {
-  const depthAxis = Billboard.direction();
-  const candidates = [];
+function createInstance(shape, entry, visible) {
+  const mesh = shape.create(entry.hex);
+  place(mesh, entry, shape);
+  mesh.visible = visible;
+  sceneRef.add(mesh);
+  return mesh;
+}
+
+function removeInstance(mesh) {
+  Tween.removeForMesh(mesh);
+  sceneRef.remove(mesh);
+  disposeMesh(mesh);
+}
+
+function onConfigChange(next, prev, meta) {
+  let layout = null;
+  const byKey = () => {
+    if (!layout) {
+      layout = new Map();
+      layoutFor(next).forEach((e) => layout.set(`${e.type}:${e.index}`, e));
+    }
+    return layout;
+  };
+  const fresh = new Set();
+
   shapeRegistry.forEach((shape) => {
-    const count = ShapeSettings.get(shape.type).count;
-    for (let i = 0; i < count; i++) {
-      candidates.push(buildCandidate(shape, i));
+    const arr = instances[shape.type];
+    const s = next.shapes[shape.type];
+
+    while (arr.length > s.count) removeInstance(arr.pop());
+    while (arr.length < s.count) {
+      // new instances appear at their own generated position immediately
+      // (not eased in); the next advance re-resolves everything together
+      const mesh = createInstance(shape, byKey().get(`${shape.type}:${arr.length}`), s.visible);
+      fresh.add(mesh);
+      arr.push(mesh);
+    }
+
+    if (s.visible !== prev.shapes[shape.type].visible) {
+      arr.forEach((mesh) => { mesh.visible = s.visible; });
     }
   });
-  return resolveCollisions(candidates, depthAxis);
+
+  if (meta.replaced || next.seed !== prev.seed || next.palette !== prev.palette) {
+    byKey().forEach((entry, key) => {
+      const mesh = instances[entry.type][entry.index];
+      if (mesh && !fresh.has(mesh)) Tween.add(mesh, toTarget(entry), next.time.durationMs);
+    });
+  }
+}
+
+/**
+ * What a mesh looks like — or, mid-transition, where it's headed — as a
+ * LockedEntry (see types.js): exactly what a lock freezes.
+ */
+function snapshot(mesh) {
+  const target = Tween.targetOf(mesh);
+  const position = target ? target.position : mesh.position;
+  const quaternion = target ? target.quaternion : mesh.quaternion;
+  const scale = target ? target.scale : mesh.scale;
+  const color = target ? target.color : mesh.userData.baseColor;
+  const euler = new THREE.Euler().setFromQuaternion(quaternion); // XYZ, same as the generator
+  return {
+    position: position.toArray(),
+    rotation: [euler.x, euler.y, euler.z],
+    scale: scale.toArray(),
+    hex: '#' + color.getHexString()
+  };
 }
 
 export const Composition = {
@@ -104,66 +137,42 @@ export const Composition = {
     instances = {};
     shapeRegistry.forEach((shape) => { instances[shape.type] = []; });
 
-    allCandidates().forEach((c) => {
-      const shape = getShape(c.type);
-      const mesh = shape.create(c.hex);
-      applyImmediate(mesh, c, shape);
-      scene.add(mesh);
-      instances[c.type][c.instanceIndex] = mesh;
+    const config = SceneConfig.get();
+    layoutFor(config).forEach((entry) => {
+      const shape = getShape(entry.type);
+      instances[entry.type][entry.index] = createInstance(shape, entry, config.shapes[entry.type].visible);
     });
-  },
 
-  setDuration(ms) {
-    transitionDuration = ms;
-  },
-
-  getDuration() {
-    return transitionDuration;
-  },
-
-  setVisible(type, visible) {
-    (instances[type] || []).forEach((mesh) => { mesh.visible = visible; });
+    if (unsubscribe) unsubscribe();
+    unsubscribe = SceneConfig.subscribe(onConfigChange);
   },
 
   /**
-   * Adds or removes instances of `type` to reach `count`. New
-   * instances are placed with their own random target immediately
-   * (not yet collision-resolved against the rest of the scene — the
-   * next advance() fully re-resolves everything); removed instances
-   * are taken out of the scene and have any in-flight tween canceled
-   * so nothing keeps animating a mesh that's no longer there.
+   * Freezes every instance of `type` exactly as it is on screen (or about
+   * to be, mid-transition): from now on advances re-roll everything else
+   * while this type stays put, and everything else is placed around it.
+   * Nothing moves when you lock. The frozen instances live in the config
+   * (shapes[type].locked), so presets, links, history and a reload all
+   * keep them. Returns false if there was nothing to lock.
    */
-  setCount(type, count) {
-    const shape = getShape(type);
-    if (!shape || !sceneRef) return;
-    const arr = instances[type] || (instances[type] = []);
-    const target = Math.max(0, Math.floor(count));
-
-    while (arr.length > target) {
-      const mesh = arr.pop();
-      if (mesh) {
-        Tween.removeForMesh(mesh);
-        sceneRef.remove(mesh);
-      }
-    }
-    while (arr.length < target) {
-      const c = buildCandidate(shape, arr.length);
-      const mesh = shape.create(c.hex);
-      applyImmediate(mesh, c, shape);
-      mesh.visible = ShapeSettings.get(type).visible;
-      sceneRef.add(mesh);
-      arr.push(mesh);
-    }
+  lock(type) {
+    const arr = instances[type];
+    if (!arr || arr.length === 0 || SceneConfig.get().shapes[type].locked) return false;
+    return SceneConfig.update({ shapes: { [type]: { locked: arr.map(snapshot) } } });
   },
 
-  advance() {
-    allCandidates().forEach((c) => {
-      const mesh = instances[c.type] && instances[c.type][c.instanceIndex];
-      if (mesh) Tween.add(mesh, c, transitionDuration);
-    });
+  /** Releases a lock: the type is generated from the seed again at the next advance. */
+  unlock(type) {
+    return SceneConfig.update({ shapes: { [type]: { locked: null } } });
   },
 
-  types() {
-    return shapeRegistry.map((s) => s.type);
+  /**
+   * The single entry point every trigger (click / key / timer / button)
+   * calls: pick a new seed, which re-randomizes every instance together.
+   * `patch` lets a caller change something else in the same step (e.g. the
+   * palette) so it's one transition, not two.
+   */
+  advance(patch = {}) {
+    SceneConfig.update({ ...patch, seed: randomSeed() });
   }
 };
