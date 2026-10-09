@@ -1,6 +1,6 @@
 {
   "name": "proun-generator",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "A generative art tool inspired by El Lissitzky's Proun series, built with Three.js.",

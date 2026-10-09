@@ -1,61 +1,124 @@
 # Release Notes
 
-## Unreleased
+## v0.4.0 — 2026-10-10
 
-- **Snap rotation to 45°.** Each shape type's settings (the gear) gained a
-  "Snap rotation to 45°" checkbox. When on, every rotation angle of that type
-  is a multiple of 45° instead of an arbitrary angle. Off by default, so
-  nothing changes until you turn it on; applies at the next advance, like size
-  and spread. The same seed gives the same composition with its angles
-  rounded. Not offered for the circle (it always faces the camera). Saved in
-  presets, the autosaved session and Copy link (links without it are
-  unchanged); disabled while a type is locked.
-- Tests: 382 (was 355).
+The app now remembers where you left off, lets you share and step back through
+compositions, and gains new tools for building them: locks, a rod shape,
+45° rotation snapping and hi-res export. (Stages 3 and 4 of the refactor
+roadmap.)
 
-**Features (Phase 4) — history, locks, rods, hi-res export:**
-
-- **Step history.** `‹` / `›` buttons beside Advance (its label is now just "Advance" to make room; the full name is in its tooltip) (and the ← / → keys) step
-  back and forward through the compositions you've seen. Going back uses your
-  current settings, so it never rewrites your sliders or counts.
-- **Lock a shape type.** A padlock on each shape tab freezes that type exactly
-  as it is on screen: later advances re-roll everything else around it. Nothing
-  moves when you lock. Locked shapes also survive presets, the autosaved
-  session and Copy link. While locked, the type's count/size/spread controls
-  are disabled; unlock to generate it from the seed again.
-- **Rod shape.** A thin line in the palette's ink color, long on a random
-  axis, that overlays other shapes instead of pushing them. It starts at count
-  0 (add some from its tab), so existing compositions are unchanged. The
-  shape contract gained optional `colorRole`, `collides` and `defaults`.
-- **Hi-res PNG export.** A 1× / 2× / 4× selector beside Export PNG. 1× is
-  exactly what it was; the larger sizes re-render the live scene at a higher
-  pixel ratio (same colors and antialiasing), are capped to what the GPU can
-  render (the button says "(capped)"), and files are named for the seed.
-- Locks travel in share links via an optional field; links without locks are
-  unchanged and the link format version stays 1.
-- Tests: 354 (was 234).
-
-**Persistence pass (Phase 3) — autosave, share links, explicit migration, types:**
+### New
 
 - **Your session is remembered.** The current composition (seed included) and
-  all settings are autosaved to `localStorage` and restored on reload.
-- **Copy link** (new button under Export PNG): copies a URL that opens the app
-  on the same composition (seed, palette, orientation, per-shape settings).
-  Timing is not part of a link; a viewer keeps their own. The link is removed
-  from the address bar once read. Links use their own versioned format and are
-  designed to stay valid across future releases; invalid or hand-edited links
-  are ignored or clamped, never fatal.
-- **Explicit schema migration**: stored configs (presets, session) pass through
-  `migrateConfig` before validation; the mechanism is tested with an injected
-  migration table. Presets/sessions from older or newer versions load
-  best-effort instead of failing.
-- **Fixed:** a presets list stored as valid JSON of the wrong shape (an
-  object, a number, `null`) used to throw and break the presets panel.
-- **Fixed (test suite):** a Phase 2 composition test that depended on the
-  random default seed (it passed or failed by chance) now asserts only what is
-  guaranteed.
-- Opt-in strict type checking (`npm run typecheck`, `// @ts-check`) for the
-  config, generator and preset modules, with shared types in `src/types.js`.
-- Tests: 234 (was 175).
+  all settings — palette, orientation, timing, every shape's options — are
+  autosaved to `localStorage` shortly after they stop changing, and immediately
+  when the page is hidden or closed. A reload brings back the same picture. If
+  auto-advance was on, it resumes.
+- **Copy link.** A new button under Export PNG copies a URL that opens the app
+  on the same composition: seed, palette, orientation and per-shape settings
+  (including locks and snapped rotation). Timing is *not* part of a link; the
+  viewer keeps their own. The link is removed from the address bar once it's
+  read, and a link that is invalid or hand-edited is ignored or clamped, never
+  fatal.
+- **Step history.** `‹` / `›` buttons beside Advance, and the ← / → keys, step
+  back and forward through the compositions you've seen. Going back uses your
+  *current* settings, so it never rewrites your sliders or counts, and locked
+  shapes stay locked. After stepping back, a new composition drops the
+  "forward" entries (like a browser). The last 100 are kept, in memory only.
+- **Lock a shape type.** A padlock on each shape tab freezes that type exactly
+  as it is on screen. Advancing re-rolls everything else around it, and the
+  locked shapes never move, resize or recolor — not even on a palette change.
+  Nothing moves at the moment you lock, and locking mid-transition freezes
+  where the shapes are headed. While locked, the type's count, size, spread and
+  snap controls are disabled (they're baked into the frozen instances);
+  Visible still works. Locks survive presets, the session and Copy link.
+- **Snap rotation to 45°.** A checkbox in each shape's settings (the gear):
+  every rotation angle of that type becomes a multiple of 45° instead of an
+  arbitrary angle. Off by default; applies at the next advance like Size and
+  Spread. The same seed gives the same composition with its angles rounded.
+  Not offered for the circle, which always faces the camera.
+- **Rod shape.** A thin line in the palette's ink color, long on one random
+  axis (horizontal, vertical or into the depth). Rods overlay other shapes
+  instead of pushing them. It starts at count 0 — add some from its tab — so
+  existing compositions look the same.
+- **Hi-res PNG export.** A 1× / 2× / 4× selector next to Export PNG. 1× is
+  exactly what it was. Larger sizes re-render the live scene at a higher pixel
+  ratio (same colors and antialiasing as the screen) and are capped to what the
+  GPU can render, in which case the button says "(capped)". Files are named for
+  the seed (`proun-<seed>.png`, `…@2x.png`). A 4× export of a retina stage is
+  about 5760×4480.
+
+### Changed
+
+- The Advance button's label is now just "Advance" to make room for the step
+  buttons; the full name is in its tooltip.
+- The shape tab row adapts to however many shapes there are (it was fixed at
+  six columns), so the seventh tab fits.
+
+### Fixed
+
+- A presets list in storage that was valid JSON of the wrong shape (an object,
+  a number, `null`) made the presets panel throw. It's now ignored.
+- (Test suite) A composition test that depended on the random default seed — it
+  passed or failed by chance — now asserts only what is guaranteed.
+
+### Under the hood
+
+- **Explicit schema migration.** Stored configs (presets, session) pass through
+  `migrateConfig` before validation, which runs the steps from the data's own
+  version up to the current one. Older data upgrades itself, newer data loads
+  best-effort, and a failing step never throws. The schema version stays 2 — the
+  new per-shape fields (`locked`, `snapRotation`) are optional and default
+  safely.
+- **Share-link format** is versioned separately from the config schema and
+  designed to stay readable forever. Locks and snapped types travel in optional,
+  additive fields that are absent when unused. Golden tests pin both the encoded
+  and decoded forms so an accidental change fails loudly.
+- **Locks are part of the config** (a frozen copy of the instances), so the
+  layout is still a pure function of the config and presets, links, the session
+  and history all keep working. The generator treats locked shapes as immovable
+  obstacles.
+- **Shape contract** gained optional `colorRole` (`'ink'`), `collides` and
+  `defaults`. `shapes/rod.js` is the worked example and needed no edits outside
+  its own file, one registry line and one icon.
+- **Opt-in strict type checking:** `npm run typecheck` checks the files marked
+  `// @ts-check` — everything in `config/` and `generator/`, `export/hiRes.js`,
+  `presets/PresetStore.js` and `core/AutoAdvance.js` — with shared types in
+  `src/types.js`.
+- **Tests: 382** (175 at v0.3.0), including the real `index.html` driven through
+  the panel in jsdom. The core behaviors were also mutation-checked: the code
+  was deliberately broken in dozens of ways to confirm a test fails each time,
+  which found and closed several gaps in the tests themselves.
+
+### Known limitations
+
+- **Collision resolution is capped** (8 attempts per shape), so overlaps remain
+  at higher counts. Measured on synthetic scenes of unit-size boxes: roughly 3%
+  of layouts have an overlapping pair with 3 shapes, 0.4 pairs on average with
+  6, about 4 with 12 and about 27 with 24.
+- **Lock caveat.** The other shapes on screen when you lock were placed before
+  the lock existed. Regenerating (loading a preset, stepping back to the same
+  seed) places them around the locked shapes and can differ slightly from that
+  moment. The locked shapes are always exact.
+- Settings (size, spread, snap rotation) apply at the next advance, not
+  immediately. Count, visibility and locking are immediate.
+- A seed fixes the composition (positions, rotations, scales, colors), not the
+  paper/pigment grain, which uses its own unseeded noise.
+- ← / → (and Space) are ignored while a control has keyboard focus, so they
+  don't interfere with typing or sliders.
+- Type checking covers the pure core; the renderer-facing files and UI aren't
+  opted in yet.
+
+### Upgrading
+
+Nothing to do. Existing presets, sessions and settings keep working: shapes a
+preset doesn't mention keep their defaults, and options it predates (locks,
+snap rotation) load as off.
+
+## v0.3.0
+
+Stages 1 and 2 of the refactor roadmap: a cleanup pass, then one source of
+truth and seeded, reproducible generation.
 
 **Architecture pass (Phase 2) — one source of truth, seeded generation:**
 
