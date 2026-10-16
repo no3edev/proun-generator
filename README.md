@@ -6,6 +6,10 @@ triangle…) are placed, colored, and periodically re-randomized within a
 palette, easing between compositions with a lightweight tween engine and a
 depth-based collision resolver so shapes never truly intersect in 3D.
 
+> **Continuing the project?** Read [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) first: what was built in the
+> visual-dynamics stage and why, what was verified, the open items, and how the work is done.
+> [`tools/verify/`](tools/verify/README.md) holds the headless-browser verification harness.
+
 ## Setup
 
 ```bash
@@ -35,7 +39,8 @@ src/
 │   ├── defaults.js        every tunable constant and limit in one place:
 │   │                      time ranges/defaults, per-shape limits, scene
 │   │                      bounds, collision margin, camera, orientations,
-│   │                      overlay opacity; plus clampDuration/clampInterval
+│   │                      overlay opacity; plus clampDuration/clampInterval;
+│   │                      and DYNAMICS: the visual-dynamics constants
 │   ├── SceneConfig.js     the scene's single source of truth: one small
 │   │                      serializable object + update/replace/subscribe,
 │   │                      validation, clamping, schema version + migrations
@@ -54,7 +59,11 @@ src/
 │   ├── SceneManager.js    renderer, camera, resize, render loop; follows the
 │   │                      config's orientation/palette
 │   ├── Billboard.js       fixed camera-facing orientation (used by circle)
-│   ├── Tween.js           position/rotation/scale/color easing
+│   ├── Rhythm.js          the shared event clock for visual dynamics (energy,
+│   │                      phase, pause/hold), fed by Composition
+│   ├── Tween.js           position/rotation/scale + color (classic lerp or the
+│   │                      overpaint "front"); keeps each mesh's last tween so
+│   │                      the lab can pause and scrub it
 │   ├── Composition.js     the scene view: keeps meshes in step with the
 │   │                      config (add/remove/dispose, visibility, re-layout)
 │   └── AutoAdvance.js     the one timer: advances every time.intervalMs
@@ -68,12 +77,23 @@ src/
 │   ├── plane.js
 │   └── rod.js             thin line in the palette ink; passes through shapes
 ├── texture/
-│   ├── PaperTexture.js    layer 1: the paper sheet (cached, tinted per palette)
-│   ├── PigmentLayer.js    layer 2: pool of grayscale pigment-coverage canvases
-│   ├── MicroVariation.js  layer 3: subtle final jitter (future animation hook)
-│   ├── noise.js           canvas building blocks shared by the three layers
-│   └── materials.js       the shading contract (paintMesh), materialSetMesh,
-│                          boxMesh, disposeMesh
+│   ├── PigmentResponse.js shader injection on the shape materials: the
+│   │                      procedural PAINT field and the OVERPAINT colour change
+│   ├── GroundLayer.js     the ground: a procedural full-screen layer behind the
+│   │                      shapes (mottle, speckle, cracks) and its one-way morph
+│   ├── noiseGLSL.js       shared GLSL hash / value noise / fbm
+│   ├── paintSeed.js       the deterministic per-slot seed of a shape's paint
+│   ├── PaperTexture.js    the paper-grain overlay sheet (cached, tinted per palette)
+│   ├── PigmentLayer.js    legacy: pool of grayscale pigment canvases (used when
+│   │                      the lab's "Procedural paint" is off)
+│   ├── MicroVariation.js  subtle final jitter for the canvas textures
+│   ├── noise.js           seeded canvas building blocks (withNoiseSeed)
+│   └── materials.js       the shading contract (paintMesh), materialSetMesh
+│                          (gives each mesh its colour-front state), boxMesh,
+│                          disposeMesh
+├── lab/
+│   ├── labSettings.js     the lab schema (controls), store, group -> tab map
+│   └── Lab.js             applies lab values to the systems; console hook
 ├── palette/
 │   ├── palettes.js        palette data — edit here to add a palette
 │   └── Palette.js         palette lookup; the active one comes from the config
@@ -91,6 +111,11 @@ src/
     │                      (count, size-range slider, spread, visibility)
     ├── tabs.js             generic tab-strip helper (icon or label tabs,
     │                      active state) used by ShapeTabs.js
+    ├── PanelTabs.js        the panel's own tab strip (Scene/Shapes/Motion/
+    │                      Surface), built from the .tab-page elements;
+    │                      remembers the last tab. NOT tabs.js — names must
+    │                      differ by more than case
+    ├── LabPanel.js         builds the lab's groups into the Motion/Surface tabs
     ├── clipboard.js        copyText(): Clipboard API with a legacy fallback
     ├── shapeIcons.js       the minimal SVG glyphs used on the shape tabs,
     │                      keyed by shape `type` (unknown types fall back to
@@ -102,6 +127,14 @@ src/
     │                      row), and export-all/import
     └── panel.css           dark editorial panel styling
 tests/                     Vitest unit tests (see "Tests" below)
+src/generator/strategies/  composition strategies (index.js registry, run.js runner, common.js, axisThrust.js)
+src/ui/CompositionLab.js   the (experimental) strategy selector, on the Shapes tab
+tests/helpers/scene.js     fixtures: the real registry/palettes/camera axis, config builders
+tests/golden/              fixed-seed reference layouts (layouts.json) + the scenarios that make them
+tools/verify/              headless-browser verification harness (not part of the app)
+tools/golden/update.mjs    regenerates tests/golden/layouts.json (`npm run golden:update`)
+tools/diagnose.mjs         solver diagnostics over many seeds (`npm run diagnose`)
+docs/PROJECT_STATE.md      handoff: decisions, evidence, open items, how we work
 src/types.js               shared JSDoc types (SceneConfigState, LayoutEntry, ShapeDef…)
 tsconfig.json              opt-in strict type checking (see "Types" below)
 ```
@@ -199,6 +232,36 @@ the autosaved session, share links (an optional `l` field) and history.
   (The alternative — re-laying-out the others when you click the padlock — would
   make shapes visibly shift on lock.)
 
+### Composition strategies
+
+The original generator places every shape independently (it is called **legacy**, and stays the default, byte-for-byte
+unchanged: every existing seed, preset and link gives the layout it always did). A **composition strategy** instead
+composes the whole scene around a structure, in screen space, and lifts the result into the scene. Selected with
+`composition.strategy` in the config (schema v3; absent = legacy), from the Lab control on the Shapes tab.
+
+- **The strategy owns the counts.** A type's `count` only says whether the type may be used (0 = excluded); how many of each
+  appear, and where, is the strategy's. `visible` is still only a display toggle. A *locked* type is replayed verbatim and
+  taken out of the plan, as in legacy. `Composition` therefore sizes its mesh pools from the layout, not the config counts.
+- **Screen space first.** `strategies/common.js` gives a strategy the frame (from the orientation) and the camera's screen
+  basis; it plans screen positions, depths, angles and sizes. Because the camera is orthographic and the solver only moves
+  shapes along the view axis, what the strategy places on screen stays exactly there; the solver (unchanged) only settles depth.
+- **One saturated accent hue per scene.** The palette's accents are split by saturation (`splitPalette`): one saturated
+  colour is picked per scene from the seed; everything else is a neutral. No palette data changes.
+- **Roles.** Entries from a strategy carry `role` (anchor, support, connector, accent, detail); legacy entries have none.
+- **Seeding.** Each element draws from its own stream keyed by (seed, strategy, role, i), so changing one element never
+  changes another.
+- A strategy is a module exporting `{ label, plan(ctx) }` (see `axisThrust.js`), one line in `strategies/index.js`, and tests.
+
+**Axis thrust** (the first strategy): one diagonal organises the scene, chosen from the angle families found in the reference
+works (about 12-25, 40 and 55-60 degrees, rising or falling). One primary mass sits near the centre (a disc, block, cube, sphere
+or wedge); 2-3 long beams run along the axis across it and past the frame, at different depths; 2-3 small accents in the one
+accent hue (smaller than the anchor by construction); 1-2 hairlines. It builds from whichever shapes are enabled, and uses the
+Beam shape for its bars when that is enabled; the remaining new shape families (segments, frames, rings) arrive in the next step. Shading is still the legacy per-face tones, so
+volumes read flatter than in the references (a tonal system is a later stage).
+
+Diagnostics: `npm run diagnose` includes the strategy scenes. History entries (back/forward) and share links carry the
+strategy; a link or preset that does not mention one is legacy.
+
 ### Step history
 
 The `‹` / `›` buttons beside Advance (and the ← / → keys) step back and forward
@@ -214,6 +277,19 @@ composition after stepping back drops the "forward" entries. It keeps the last
 The Rod shape (`shapes/rod.js`) is a thin line in the palette's ink, long on
 one random axis. It overlays other shapes rather than pushing them (`collides:
 false`), and it starts at count 0 — add some with the stepper on its tab.
+
+### Beams
+
+The Beam shape (`shapes/beam.js`) is the long structural bar of the reference works: local x is the length (2.6-5.0), the
+section is 0.11-0.30 wide by 0.7-1.6 of that, so it is always at least about five times as long as thick (the variable cube
+can come out as a stripe, a slab or a chunk; a beam is always a beam). It has its own face tones, with the end faces darkest and
+the long faces spread more than a plain box (about 1.8:1 against 1.3:1), so the cut ends read. Like the rod it starts at
+count 0, so nothing existing changes; add some with the stepper on its tab. Under **Axis thrust**, an enabled beam makes the
+scene's bars (chunkier than the stand-in boxes used otherwise, 6-40 times as long as thick), and a very thin beam stands in for
+the hairlines when no rod, box or plank is enabled.
+
+Shape types added after a preset or link was made: a type the record never mentions takes its own default (off for the rod and
+the beam), not the viewer's current settings, so an older preset or link restores its own composition.
 
 ### Adding a new shape
 
@@ -370,11 +446,12 @@ seed.
 
 ### Textures
 
-Materials are built from three layers, all grayscale and color-independent so
-a small pool can be built once and reused for every palette and accent:
-`PaperTexture.js` (the sheet; also tinted into the CSS paper overlay behind
-the stage), `PigmentLayer.js` (paint coverage, picked from a pool by
-`pickStructureTexture()`), and `MicroVariation.js` (a last subtle jitter pass).
+What a shape's surface shows is now **procedural** (see "Visual dynamics" below): `PigmentResponse.js` computes
+the paint in the fragment shader, and `GroundLayer.js` draws the paper/canvas behind the shapes. The older
+canvas-based pieces remain: `PaperTexture.js` (the paper-grain overlay sheet, tinted into the CSS overlay on
+top of the stage), and, behind the lab's *Procedural paint* switch, `PigmentLayer.js` (a pool of grayscale
+pigment-coverage canvases picked by `pickStructureTexture()`) with `MicroVariation.js` (a last jitter pass).
+All canvas noise is **seeded** (`withNoiseSeed` in `noise.js`), never `Math.random`.
 All the *color* a shape shows comes from `material.color`, set via
 `shadeColor()` in `texture/materials.js`, which also tags each mesh's
 `userData` so `Tween.js` knows how to re-tint it as color eases between
@@ -391,6 +468,108 @@ start of every transition. If you add a new shading path, route it through
 paper/watercolor images later, `texture/` is the only place that needs to
 change — shape modules just call `materialSetMesh(...)`/`boxMesh(...)` and
 don't know what's behind it.
+
+### Visual dynamics
+
+A composition change is an *event*. `core/Rhythm.js` is the shared clock for it:
+`Composition` calls `Rhythm.trigger()` where it starts the tweens and the render
+loop calls `Rhythm.update(dt)`. Anything that wants to react reads
+`Rhythm.energy` (0..1 envelope, quick attack, slow release, exactly 0 at rest),
+`Rhythm.phase`, .
+Timing is relative to the transition duration and capped by the auto-advance
+interval; a retrigger mid-event continues from the current energy. Constants
+live in `DYNAMICS` (`config/defaults.js`).
+
+**Color change = overpainting** (`texture/PigmentResponse.js`, `core/Tween.js`).
+`Tween` paints a mesh its new color at once and drives a per-mesh `front`
+(0 → 1, after a delay measured in transition durations); the shader blends back
+toward the old color wherever the new paint has not arrived. The order of
+arrival is a sweep through the form's own space, eroded by the pigment grain, with
+a narrow edge, so only the two colors appear, plus a small tonal shift of each
+(never paper, never a third hue). At rest the code is skipped by a uniform branch.
+The sphere has no pigment map and keeps the classic color lerp. A change that
+interrupts another keeps the layer it interrupted (frozen where it was) under the
+new one, so patches that had already changed stay changed; interrupting a third
+time settles the oldest layer, the one case that can still pop. (Earlier builds had a
+"pigment thinning" toward the paper color; it was removed because it introduced
+an extra color during changes.)
+
+**Paint** (`texture/PigmentResponse.js`, `texture/paintSeed.js`): the grain on the
+shapes is a procedural field computed in the shader in each face's own plane,
+replacing the 256-pixel pattern (still used when *Procedural paint* is off in the
+lab). Three bands with their own scale rules, after the reference works: fine
+tooth is physical (the same size on every shape); strokes run along each face's
+long side (the direction changes smoothly as a face's proportions change, so it never flips in one frame) at a width that follows the shape's size by `followStrokes`; coarse
+stains follow the form by `followStains`. No stretching on thin shapes, no tile
+seam, sharp at any export size. Each shape slot has a fixed seed
+(`paintSeed(type, index)`), so the paint is reproducible and stays the same
+through composition changes. The overpaint's order of arrival uses the same field,
+so new color arrives along the strokes. The sphere (vertex colors) is not covered yet.
+
+**Ground** (`texture/GroundLayer.js`): the paper/canvas texture behind the
+shapes is a procedural full-screen layer drawn first (cloud mottle, fine
+speckle, optional hairline cracks), seeded by a constant, in the picture's own
+coordinates: the same for every composition and palette, sharp at any export
+size. It varies the paper color around its mean, so its visibility changes the
+texture, not the overall tone. The old DOM grain overlay stays at its constant
+opacity over everything. `DYNAMICS.ground.visibility` is std/mean of luminance
+(references: paper sheets ≈ 0.005–0.01, painted grounds ≈ 0.02–0.06).
+
+**Ground morph** (`texture/GroundLayer.js`): every composition seed has its own
+ground imprint: the mottle and the crack network (the fine speckle is the paper's
+fixed grain).
+When the seed changes the ground morphs **once, one way**, from the old pattern to the
+new and stays there — the crack cells drift into their new positions on the same
+morph, so the network rearranges continuously and never pops — after a delay, settling smoothly (a critically damped follower,
+so a change that arrives mid-morph just retargets it: no restart, no going back).
+While it morphs the patches also deform, condense and gain a little contrast, strongest
+mid-morph and nil at both ends. The blend keeps the spread the same, so the paper's
+overall tone never moves (no brightness jump). At rest the pattern depends only on the
+current seed, so it is reproducible from a share link. A palette-only change (same
+seed) does not move the ground. The code is skipped by a uniform branch at rest.
+
+### Reproducibility, export and cost
+
+Nothing in the picture is random at load: the paper-grain overlay and the legacy pigment pool are
+built from seeded streams (`withNoiseSeed` in `texture/noise.js`), the paint and ground are pure
+functions of position and a seed, and every layout/palette/accent comes from the composition seed.
+A state reached by advancing and the same state opened from its share link render identically
+(checked pixel for pixel, canvas and composited stage, in sessions with different `Math.random`
+streams). PNG export re-renders the scene at 1×/2×/4× and composes the overlay; the ground and paint
+are resolution-independent, and the ground's crack lines have a fixed physical width, so every
+size shows the same picture (4× downsampled vs the 1× export: ≈0.8/255 mean difference; ground
+texture bands agree across sizes). Exporting a paused (mid-change) scene matches the screen.
+Resources stay flat over many changes (geometries, textures and shader programs constant; heap steady).
+The ground is the heaviest layer — a full-screen shader with four-octave noise and a Worley crack
+pass — so the lab shows a frame-rate readout; if a target GPU struggles, the structural fix is to
+render the ground into a texture only while it changes and draw that at rest.
+
+### Material lab
+
+The panel is organised in four tabs — **Scene** (orientation, palette, presets: what the picture
+is), **Shapes** (what is in it), **Motion** (time and how it changes) and **Surface** (what it is made
+of) — with Advance, Export and Copy link pinned below. The material lab's controls live in the Motion
+and Surface tabs as groups marked *lab* (generated from `LAB_SCHEMA`; `LAB_GROUP_TABS` in
+`lab/labSettings.js` says which tab a group goes on). Tabs are `.tab-page` elements in `index.html`;
+the strip is built from them (`ui/PanelTabs.js`) and the last open tab is remembered. Every section starts
+collapsed. The lab holds the tuning controls:
+pausing and scrubbing the last change (a *Step* slider: 0 = the scene before it, 1 = after, geometry and color together; works after the change has finished, and releasing mid-way lets it carry on to the exact end state), the paint (procedural
+on/off, visibility, stroke width/length, how strokes and stains follow shape size),
+the color change
+(overpaint on/off against the classic lerp, delay, edge width, grain erosion,
+tonal shift) the ground (on/off, visibility, patch size, cracks, crack size and elongation) and
+the ground's morph (delay, morph time, condense, deform, contrast lift) and *Cracks vary*
+(0 pins the cracks as the paper's fixed identity). It is
+generated from `LAB_SCHEMA` (`lab/labSettings.js`) — a new shader parameter is
+one schema entry plus a line in `lab/Lab.js`.
+
+The lab is **session-local on purpose**: its values live in this browser's
+localStorage (only those that differ from the defaults) and are not part of the
+SceneConfig, so they never travel with presets, share links or history, and need
+no migrations. When a value proves itself, *Copy defaults* prints the changed
+values as a `DYNAMICS` fragment to paste into `config/defaults.js` (or promote it
+to a real setting). *Reset lab* returns to the defaults. `window.__proun` exposes
+the clock and the lab to the console.
 
 ### Types
 
@@ -417,45 +596,45 @@ longer produce a never-finishing tween or a runaway auto-advance timer.
 
 ### Tests
 
-`npm test` runs Vitest (jsdom for the UI file only):
+`npm test` runs Vitest (node environment).
 
-- `rng`, `generate` — seeded streams, determinism, "never calls
-  `Math.random`", per-instance independence, size/spread semantics.
-- `SceneConfig` — defaults, clamping, change notification, `replace()`,
-  v1 -> v2 migration, garbage input, round-trips.
-- `shapes.contract` — every registered shape honors the contract
-  (metadata, `randomScale(rng)` draws only from the rng, shading contract,
-  `localHalfExtents` matches the real geometry, disposal).
-- `shading` — the color math is identical to the pre-refactor formula;
-  `Tween` easing, interruption without a color snap, exact end values.
-- `Composition` — against a real `THREE.Scene` (no GL): the scene always
-  equals `generate(config)`; counts, disposal, tween cancellation,
-  visibility, palette, seed restore.
-- `ui` — the real `index.html` driven through Panel / ShapeTabs /
-  PresetsPanel / the Space key: what each control writes, how controls repaint
-  from the config, preset save/load.
-- `migration`, `session`, `share`, `boot`, `clipboard` — migration mechanism
-  (with an injected table), debounced autosave and flush, the share-link
-  format (golden tests, hostile input), startup priority, clipboard fallback;
-  plus the "Copy link" button and a full `bootConfig()` run in `ui`.
-- `snap` — the setting (booleans only, presets never inherit it), snapped
-  angles (always multiples of 45°, never `-0`, same random stream), links, the
-  scene, and the checkbox in the real UI.
-- `lock`, `rod` — lock validation and generation (locked shapes verbatim,
-  fixed obstacles, count forced), the optional shape-contract fields (ink
-  color, non-colliding, per-shape defaults); plus, in `Composition`, locking
-  against a real scene (nothing moves at lock time, mid-transition,
-  palette, presets, history) and, in `share`, locks in links.
-- `History`, `hiRes` — back/forward semantics (branching, limit, current
-  settings), export scale clamping and the render-and-restore sequence
-  (including on failure), overlay compositing, file naming.
-- `ui.features` — the lock toggle, history buttons and ← / → keys, the export
-  control and the rod tab, driven through the real `index.html`.
-- `config`, `CollisionResolver`, `PresetStore` — clamping, collision (incl.
-  fixed obstacles), storage (including storage holding valid JSON of the wrong shape).
+**Seed -> composition regression suite (Stage 0b).** `golden` compares the generator's exact output for 15 fixed
+(configuration, seed) reference scenes against `tests/golden/layouts.json`. A change to the generator, a shape's
+`randomScale()`, the collision solver or the rng that moves any shape fails it. That is the contract *existing seeds keep
+producing today's layouts*. If a change to the mapping is intended and approved, regenerate with `npm run golden:update` and
+review the diff. Alongside it: `generate` (purity, ordering, snap rotation, locks, rods, circle bounds, depth-only
+resolution), `collision` (separation, margin, fixed candidates, determinism, screen position unchanged), `sceneConfig`
+(defaults, clamping, `replace()` semantics, locks, migrations) and `camera` (every shape stays inside the clip planes at the
+UI's limits). `npm run diagnose` prints the solver's residual AABB / true-volume overlap and clipping rates over many seeds
+(read-only; the baseline for Stage 3).
 
-Not covered on purpose: anything needing a real canvas / WebGL context (the
-texture canvases, actual pixels, the render loop).
+Strategy suites (Stage 2.1): `strategyCommon` (screen basis, lift, orientations, palette split), `axisThrust` (determinism, count ownership,
+one anchor and subordinate accents, one dominant axis from the angle families, one saturated hue on every shipped palette, locks,
+orientations, clip planes), `layoutCounts`, and `persistence` (the strategy surviving share links, presets, session and history; and types added later
+staying off). `beam` covers the shape's contract and proportions, its legacy and Axis thrust use, and the registry-wide contract.
+
+The suites **added with the visual-dynamics work**:
+
+- `rhythm` — the shared clock: envelope shape, continuity on retrigger, pause (`setHold`).
+- `tween` — pause-and-scrub over finished and running changes, release mid-way, removal, replacement.
+- `pigmentResponse` — the shader injection (anchors present in this three.js version, uniform branches, no randomness/time,
+  smooth stroke direction, interrupted-layer support).
+- `ground` — the ground shader's contract (procedural, seeded, physical crack width, per-seed crack morph) and the morph follower
+  (delay, one-way, retargeting without a jump, history-independence, palette-only change, switched off).
+- `lab` — schema (unique keys, defaults from `DYNAMICS`, group -> tab), normalization, "Copy defaults", the store (only non-default values persisted).
+- `noise`, `paintSeed` — seeded streams are deterministic and independent of draw order.
+- `tabs` — the panel's tab memory.
+
+Earlier versions of this README also described suites for `rng`, `generate`, `SceneConfig` (the last two now exist again, rebuilt in Stage 0b), `shapes.contract`, `shading`,
+`Composition`, `ui`, `migration`, `session`, `share`, `boot`, `clipboard`, `snap`, `lock`, `rod`, `History`, `hiRes`, `config`,
+`CollisionResolver` and `PresetStore`. **The archive the visual-dynamics work started from did not contain a `tests/` directory**,
+so those were not run or modified there. If they exist in your repository, keep them; two things may need updating (details in
+`docs/PROJECT_STATE.md` §11): tests that expect the classic colour lerp in `Tween` (meshes now use the overpaint front by default;
+call `setColorFront({ enabled: false })` or assert on `userData.front`), and UI tests that load `index.html` (the panel is now tab pages;
+element ids are unchanged).
+
+Not covered on purpose: anything needing a real canvas / WebGL context (the shaders' pixels, the render loop). That is what
+`tools/verify/` is for.
 
 ### Collisions
 
@@ -485,7 +664,8 @@ shape mid-ease. Left alone for now since it wasn't visually noticeable at
 
 `export/PngExporter.js` composites the WebGL canvas with the paper-grain
 overlay (which lives in a separate DOM layer via CSS `mix-blend-mode`, so
-it has to be drawn in manually to match what's on screen) and triggers a
+it has to be drawn in manually to match what's on screen; the ground and paint are
+inside the WebGL render, so they are re-rendered at the export size) and triggers a
 download, named after the seed (`proun-<seed>.png`, `…@2x.png`). This is
 intentionally its own module — a future SVG, JSON composition-recipe, or glTF
 exporter would live alongside it in `src/export/` without touching rendering

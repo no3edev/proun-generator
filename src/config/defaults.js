@@ -86,7 +86,18 @@ export const COLLISION = {
 // --- camera / stage ------------------------------------------------
 export const CAMERA = {
   frustumSize: 6,
-  position: [4.2, 3.4, 5.2] // fixed oblique axonometric-style viewpoint
+  position: [4.2, 3.4, 5.2], // fixed oblique axonometric-style viewpoint
+  // Clip planes, as distances from the camera along its view direction. The
+  // camera is orthographic, so these only decide what is clipped, never where
+  // anything lands on screen. They are deliberately wide, and `near` is
+  // negative (legal for an orthographic camera: the near plane may lie
+  // behind the camera). Collision resolution slides shapes along the view
+  // axis and, with many large shapes, takes them dozens of units either way
+  // (+-57 measured at the UI limits: 12 of each shape, size 10); with the
+  // former 0.1..100 planes everything pushed past ~7.4 toward the camera was
+  // cut away. tests/camera.test.js asserts the range covers those limits.
+  near: -100,
+  far: 200
 };
 
 export const ORIENTATIONS = {
@@ -102,3 +113,71 @@ export const OVERLAY_OPACITY = 0.5;
 // Longest single frame the animation loop will integrate, so a tab
 // returning from the background doesn't fast-forward every tween.
 export const MAX_FRAME_MS = 100;
+
+// --- visual dynamics ------------------------------------------------
+// Timing for the shared event clock (core/Rhythm.js), and the constants of
+// the color change and the ground layer. Units are relative to the
+// transition duration so everything scales with the rhythm instead of being
+// tied to specific milliseconds. Tuning knobs, not user settings: the
+// material lab (lab/labSettings.js) edits them live and "Copy defaults"
+// prints the values to paste back here.
+export const DYNAMICS = {
+  envelope: {
+    attack: 0.35,              // energy rises over this many durations ...
+    release: 1.8,              // ... and falls over this many (a slow settle) ...
+    releaseMaxOfInterval: 0.6, // ... but never longer than this share of the auto-advance interval
+    releaseMin: 0.3            // ... nor shorter than this many durations
+  },
+  // The pigment map every shape carries, read as a density field: the value
+  // range (green channel, measured on the generated pool) that maps to 0..1.
+  grainMap: { low: 0.885, high: 0.95 },
+  // Color change as overpainting (texture/PigmentResponse.js, core/Tween.js):
+  // the new color arrives in broken coverage over the old one. Only the two
+  // colors ever appear, plus a small tonal shift of each.
+  color: {
+    delay: 0.1,  // coverage starts this share of the transition after the geometry starts moving
+    soft: 0.62,  // width of the coverage edge (0 = a hard line, 1 = the whole form blending at once)
+    grain: 0.94, // how much the pigment grain, not the sweep direction, decides where the new color lands first (0-1)
+    tone: 0.045  // largest lighter/darker shift of a patch's own color, mid-change (0 = none)
+  },
+  // The paint on the shapes (texture/PigmentResponse.js): a procedural field
+  // in each face's own plane, replacing the old 256-pixel pattern. Three
+  // bands, each with its own scale rule, after the reference works: fine
+  // tooth is physical (the same size on every shape), strokes run along each
+  // face's long side with a roughly constant width, coarse stains belong to
+  // the form. `follow*` blends each band between world scale (0) and
+  // scale-with-the-form (1).
+  paint: {
+    visibility: 0.03, // luminance variation of the paint (std / mean); references' painted faces ~0.04-0.09, the old pattern ~0.006
+    base: 0.93,       // mean multiplier on the color (the old pattern averaged ~0.92)
+    strokeScale: 1,   // stroke width multiplier
+    strokeLength: 5,  // how many times longer than wide a stroke is
+    followStrokes: 0.5, // 0 = strokes keep one width on every shape, 1 = they scale with the shape
+    followStains: 1     // same for the coarse stains
+  },
+  // The ground's own change after a composition change (texture/GroundLayer.js):
+  // the paper's mottle MORPHS, once and one way, from the pattern of the old
+  // composition to the pattern of the new one (every composition seed has its
+  // own ground), and stays there. While it morphs the patches also deform,
+  // condense and strengthen a little, strongest mid-morph, nil at both ends.
+  // Mean-neutral: the paper's overall tone never moves, only its texture.
+  groundMotion: {
+    delay: 0.2,    // the morph starts this many transition durations after the change
+    duration: 1.6, // time to settle onto the new pattern, in transition durations
+    evolve: 0.7,   // mid-morph, patches condense from soft clouds toward defined blotches (0-1)
+    warp: 0.03,    // mid-morph, how far the patches deform, in picture heights
+    lift: 0.35     // mid-morph, extra contrast as a share of the resting visibility
+  },
+  // The ground: the paper/canvas texture behind the shapes (texture/GroundLayer.js).
+  // Procedural and fixed in the picture's own coordinates, so it is the same
+  // for every composition, every palette and every export size.
+  ground: {
+    visibility: 0.022, // luminance variation of the ground (std / mean); references: paper sheet ~0.005-0.01, painted grounds ~0.02-0.06
+    scale: 0.5,       // patch size multiplier
+    cracks: 0.78,     // hairline craquelure, 0 = none (reference 01 has a dense network)
+    crackScale: 0.65, // crack cell size multiplier (>1 = smaller cells, finer network)
+    crackStretch: 3.2, // how much taller than wide the cells are (1 = round, reference 01 is mostly vertical)
+    crackVary: 1,     // how much the crack network is part of each generation's imprint (0 = the paper's cracks never change, 1 = every seed has its own network and the cells drift into it with the mottle)
+    seed: 7.31        // fixed: the ground never re-rolls
+  }
+};

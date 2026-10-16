@@ -2,6 +2,10 @@ import { SceneManager } from './core/SceneManager.js';
 import { Composition } from './core/Composition.js';
 import { initAutoAdvance } from './core/AutoAdvance.js';
 import { initPanel } from './ui/Panel.js';
+import { initLab } from './lab/Lab.js';
+import { initLabPanel } from './ui/LabPanel.js';
+import { initCompositionLab } from './ui/CompositionLab.js';
+import { initTabs } from './ui/PanelTabs.js';
 import { SceneConfig, SceneHistory } from './config/store.js';
 import { restoreConfig } from './config/boot.js';
 import { saveSession, startSessionAutosave } from './config/session.js';
@@ -67,6 +71,12 @@ window.addEventListener('load', () => {
   bootConfig();
   SceneManager.init();
   initPanel();
+  initCompositionLab();
+  initLab();
+  // dev: the renderer, for resource checks from the console
+  if (window.__proun) window.__proun.getRenderer = () => SceneManager.getRenderer();
+  initLabPanel();
+  initTabs();
   initAutoAdvance();
   initInteraction();
   SceneManager.loop();

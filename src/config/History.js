@@ -1,7 +1,9 @@
 // @ts-check
 // Step history: back / forward through the compositions you've seen.
 //
-// A composition is identified by its seed (and the palette it was shown in).
+// A composition is identified by its seed, the palette it was shown in, and
+// the composition strategy that made it (the same seed is a different picture
+// under a different strategy).
 // Going back doesn't restore a snapshot of everything — it asks the config
 // for that seed again, with your CURRENT settings. So history never rewrites
 // your sliders or counts, locked shapes stay locked, and "back" is just
@@ -13,7 +15,10 @@
 // history from the restored composition). DOM-free.
 
 /** @typedef {import('../types.js').SceneConfigState} SceneConfigState */
-/** @typedef {{ seed: number, palette: string }} HistoryEntry */
+/** @typedef {{ seed: number, palette: string, strategy: string }} HistoryEntry */
+
+/** @param {SceneConfigState} c */
+const strategyOf = (c) => (c.composition && c.composition.strategy) || 'legacy';
 
 /**
  * @param {{
@@ -43,9 +48,9 @@ export function createHistory(config, { limit = 100 } = {}) {
    */
   function record(next, prev) {
     if (navigating) return; // our own back()/forward()
-    if (next.seed !== prev.seed) {
+    if (next.seed !== prev.seed || strategyOf(next) !== strategyOf(prev)) {
       entries = entries.slice(0, index + 1); // new branch: drop "forward"
-      entries.push({ seed: next.seed, palette: next.palette });
+      entries.push({ seed: next.seed, palette: next.palette, strategy: strategyOf(next) });
       if (entries.length > limit) entries = entries.slice(entries.length - limit);
       index = entries.length - 1;
       notify();
@@ -60,7 +65,7 @@ export function createHistory(config, { limit = 100 } = {}) {
     if (!entry) return false;
     navigating = true;
     try {
-      config.update({ seed: entry.seed, palette: entry.palette });
+      config.update({ seed: entry.seed, palette: entry.palette, composition: { strategy: entry.strategy } });
     } finally {
       navigating = false;
     }
@@ -79,7 +84,7 @@ export function createHistory(config, { limit = 100 } = {}) {
     start() {
       if (unsubscribe) unsubscribe();
       const c = config.get();
-      entries = [{ seed: c.seed, palette: c.palette }];
+      entries = [{ seed: c.seed, palette: c.palette, strategy: strategyOf(c) }];
       index = 0;
       unsubscribe = config.subscribe(record);
       notify();

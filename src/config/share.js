@@ -46,7 +46,8 @@ const round5 = (/** @type {number} */ n) => Math.round(n * 1e5) / 1e5;
  * what they always were) — as one flat array per instance:
  * [px, py, pz, rx, ry, rz, sx, sy, sz, "#hex"], numbers rounded to 5 places.
  * Types with "snap rotation" on are listed under `r` (also additive and
- * omitted when empty).
+ * omitted when empty). A composition strategy other than legacy is listed
+ * under `c` (additive too: a legacy link is byte-for-byte what it always was).
  * @param {SceneConfigState} config
  */
 export function encodeShare(config) {
@@ -66,7 +67,8 @@ export function encodeShare(config) {
   return toBase64Url(JSON.stringify({
     v: SHARE_FORMAT, s: config.seed, p: config.palette, o: config.orientation, h: shapes,
     ...(Object.keys(locked).length ? { l: locked } : {}),
-    ...(snapped.length ? { r: snapped } : {})
+    ...(snapped.length ? { r: snapped } : {}),
+    ...(config.composition && config.composition.strategy !== 'legacy' ? { c: config.composition.strategy } : {})
   }));
 }
 
@@ -113,6 +115,7 @@ function decodeLocked(list) {
  * SceneConfig.update(), or null if it isn't a usable share link. Never throws.
  * @param {string} input
  * @returns {{ seed: number, palette?: string, orientation?: string,
+ *             composition: { strategy: string },
  *             shapes: Record<string, Record<string, any>> } | null}
  */
 export function decodeShare(input) {
@@ -159,6 +162,9 @@ export function decodeShare(input) {
       seed: payload.s,
       ...(typeof payload.p === 'string' ? { palette: payload.p } : {}),
       ...(typeof payload.o === 'string' ? { orientation: payload.o } : {}),
+      // a link describes the whole composition: without `c` it is legacy,
+      // not whatever strategy the viewer happens to have selected
+      composition: { strategy: typeof payload.c === 'string' ? payload.c : 'legacy' },
       shapes
     };
   } catch (err) {

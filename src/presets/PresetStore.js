@@ -20,6 +20,7 @@ import { CONFIG_VERSION } from '../config/SceneConfig.js';
  * @property {string | null} palette
  * @property {string | null} orientation
  * @property {Record<string, unknown>} time
+ * @property {Record<string, unknown>} composition  { strategy } (absent in v1/v2 records = legacy)
  * @property {Record<string, unknown>} shapes
  */
 
@@ -96,6 +97,7 @@ function coerceEntry(entry) {
     palette: typeof entry.palette === 'string' ? entry.palette : null,
     orientation: typeof entry.orientation === 'string' ? entry.orientation : null,
     time: entry.time && typeof entry.time === 'object' ? entry.time : {},
+    composition: entry.composition && typeof entry.composition === 'object' ? entry.composition : {},
     shapes: entry.shapes
   };
 }

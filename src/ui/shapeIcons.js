@@ -12,6 +12,8 @@ const ICONS = {
   circle: `<svg viewBox="0 0 24 24" ${S}><circle cx="12" cy="12" r="8"/></svg>`,
   sphere: `<svg viewBox="0 0 24 24" ${S}><circle cx="12" cy="12" r="8"/><ellipse cx="12" cy="12" rx="8" ry="3" /><path d="M12 4v16"/></svg>`,
   triangle: `<svg viewBox="0 0 24 24" ${S}><path d="M5 19V5l14 14Z"/></svg>`,
+  // beam: a long bar in oblique view, with its end face
+  beam: `<svg viewBox="0 0 24 24" ${S}><path d="M3.5 17.5 15.5 5.5l3 3-12 12Z"/><path d="M15.5 5.5l2.5-2 3 3-2.5 2" /><path d="M3.5 17.5l-1 3 3-1"/></svg>`,
   rod: `<svg viewBox="0 0 24 24" ${S}><path d="M4.5 19.5 19.5 4.5" stroke-width="2.6" stroke-linecap="square"/></svg>`,
   plane: `<svg viewBox="0 0 24 24" ${S}><path d="M3 15.5 8.5 7H21l-5.5 8.5Z" fill="currentColor" fill-opacity=".18"/></svg>`
 };

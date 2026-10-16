@@ -10,7 +10,7 @@
 // image load; nothing downstream (PigmentLayer.js, materials.js,
 // SceneManager.js) needs to change to accommodate that.
 
-import { blurredNoise, fiberLines } from './noise.js';
+import { blurredNoise, fiberLines, withNoiseSeed } from './noise.js';
 import { applyMicroVariation } from './MicroVariation.js';
 
 const SIZE = 512;
@@ -34,10 +34,13 @@ export function paperStructure() {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, SIZE, SIZE);
 
-  blurredNoise(ctx, SIZE, SIZE, 6, 0.05);   // broad tone drift
-  blurredNoise(ctx, SIZE, SIZE, 24, 0.035); // mid-frequency mottle
-  fiberLines(ctx, SIZE, SIZE, 40);
-  applyMicroVariation(ctx, SIZE, SIZE, 0.012);
+  // seeded: the same sheet on every load
+  withNoiseSeed(['paper'], () => {
+    blurredNoise(ctx, SIZE, SIZE, 6, 0.05);   // broad tone drift
+    blurredNoise(ctx, SIZE, SIZE, 24, 0.035); // mid-frequency mottle
+    fiberLines(ctx, SIZE, SIZE, 40);
+    applyMicroVariation(ctx, SIZE, SIZE, 0.012);
+  });
 
   cached = canvas;
   return cached;

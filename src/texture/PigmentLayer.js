@@ -16,14 +16,18 @@
 
 import * as THREE from 'three';
 import { paperStructure } from './PaperTexture.js';
-import { blurredNoise, softBlotches, brushStrokes } from './noise.js';
+import { blurredNoise, softBlotches, brushStrokes, withNoiseSeed } from './noise.js';
+import { createRng } from '../generator/rng.js';
 import { applyMicroVariation } from './MicroVariation.js';
 
 const POOL_SIZE = 4;
 const CANVAS_SIZE = 256;
 let pool = null;
+// which pooled pattern and offset each material gets (legacy pattern only —
+// the procedural paint does not use them): a fixed stream, not Math.random
+const pick = createRng('pigment-pick');
 
-function buildOne() {
+function buildOne(_unused, index) {
   const canvas = document.createElement('canvas');
   canvas.width = CANVAS_SIZE;
   canvas.height = CANVAS_SIZE;
@@ -36,15 +40,18 @@ function buildOne() {
   ctx.drawImage(paperStructure(), 0, 0, CANVAS_SIZE, CANVAS_SIZE);
   ctx.globalCompositeOperation = 'source-over';
 
-  // pigment coverage / opacity structure
-  blurredNoise(ctx, CANVAS_SIZE, CANVAS_SIZE, 10, 0.06);
-  softBlotches(ctx, CANVAS_SIZE, CANVAS_SIZE, 8, {
-    minR: 0.06, maxR: 0.18, minAlpha: 0.03, maxAlpha: 0.08
-  });
-  brushStrokes(ctx, CANVAS_SIZE, CANVAS_SIZE, 3);
+  // pigment coverage / opacity structure — seeded per pool slot, so the
+  // pool is the same on every load
+  withNoiseSeed(['pool', index], () => {
+    blurredNoise(ctx, CANVAS_SIZE, CANVAS_SIZE, 10, 0.06);
+    softBlotches(ctx, CANVAS_SIZE, CANVAS_SIZE, 8, {
+      minR: 0.06, maxR: 0.18, minAlpha: 0.03, maxAlpha: 0.08
+    });
+    brushStrokes(ctx, CANVAS_SIZE, CANVAS_SIZE, 3);
 
-  // micro variation, applied last, on top of everything
-  applyMicroVariation(ctx, CANVAS_SIZE, CANVAS_SIZE, 0.015);
+    // micro variation, applied last, on top of everything
+    applyMicroVariation(ctx, CANVAS_SIZE, CANVAS_SIZE, 0.015);
+  });
 
   return canvas;
 }
@@ -67,9 +74,9 @@ function getPool() {
  */
 export function pickStructureTexture() {
   const canvases = getPool();
-  const base = canvases[Math.floor(Math.random() * canvases.length)];
+  const base = canvases[Math.floor(pick() * canvases.length)];
   const tex = new THREE.CanvasTexture(base);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.offset.set(Math.random(), Math.random());
+  tex.offset.set(pick(), pick());
   return tex;
 }

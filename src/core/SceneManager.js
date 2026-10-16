@@ -4,11 +4,14 @@ import { SceneConfig } from '../config/store.js';
 import { Billboard } from './Billboard.js';
 import { Tween } from './Tween.js';
 import { Composition } from './Composition.js';
+import { Rhythm } from './Rhythm.js';
+import { initGround, setGroundPaper, setGroundAspect, updateGroundMotion } from '../texture/GroundLayer.js';
 import { paperStructure, tintStructure } from '../texture/PaperTexture.js';
 import { renderAtScale } from '../export/hiRes.js';
-import { CAMERA, ORIENTATIONS, OVERLAY_OPACITY, MAX_FRAME_MS } from '../config/defaults.js';
+import { CAMERA, ORIENTATIONS, MAX_FRAME_MS, OVERLAY_OPACITY } from '../config/defaults.js';
 
 let renderer, scene, camera, stageWrap, clock;
+let frameMs = 16.7; // smoothed time between frames (the display's rate while the scene keeps up)
 let overlayCanvas = null; // cached so PNG export can composite it in
 const frustumSize = CAMERA.frustumSize;
 
@@ -17,7 +20,7 @@ function makeCamera() {
   const cam = new THREE.OrthographicCamera(
     (-frustumSize * aspect) / 2, (frustumSize * aspect) / 2,
     frustumSize / 2, -frustumSize / 2,
-    0.1, 100
+    CAMERA.near, CAMERA.far
   );
   cam.position.set(...CAMERA.position);
   cam.lookAt(0, 0, 0);
@@ -35,6 +38,7 @@ function applyOrientation(name) {
   stageWrap.style.height = h + 'px';
   renderer.setPixelRatio(window.devicePixelRatio || 1);
   renderer.setSize(w, h, true);
+  setGroundAspect(w / h);
 
   if (camera) {
     const aspect = w / h;
@@ -48,6 +52,7 @@ function applyOrientation(name) {
 
 function updateBackground() {
   renderer.setClearColor(new THREE.Color(Palette.active().paper), 1);
+  setGroundPaper(Palette.active().paper);
   const overlay = document.getElementById('paper-overlay');
   overlay.style.opacity = String(OVERLAY_OPACITY);
   overlayCanvas = tintStructure(paperStructure(), Palette.active().paper);
@@ -57,8 +62,12 @@ function updateBackground() {
 
 function loop() {
   requestAnimationFrame(loop);
-  const dt = Math.min(clock.getDelta() * 1000, MAX_FRAME_MS);
+  const raw = clock.getDelta() * 1000;
+  frameMs += (raw - frameMs) * 0.05;          // smoothed, for the lab's readout
+  const dt = Math.min(raw, MAX_FRAME_MS);
   Tween.update(dt);
+  Rhythm.update(dt);
+  updateGroundMotion(Rhythm, dt, SceneConfig.get().seed);
   renderer.render(scene, camera);
 }
 
@@ -74,6 +83,7 @@ export const SceneManager = {
     });
     scene = new THREE.Scene();
     clock = new THREE.Clock();
+    initGround(scene);
 
     applyOrientation(SceneConfig.get().orientation);
     updateBackground();
@@ -109,6 +119,8 @@ export const SceneManager = {
   },
 
   getRenderer() { return renderer; },
+  /** Smoothed milliseconds between frames — a drop below the display's rate means the scene is not keeping up. */
+  getFrameMs() { return frameMs; },
   getOverlayCanvas() { return overlayCanvas; },
   getOverlayOpacity() { return OVERLAY_OPACITY; }
 };

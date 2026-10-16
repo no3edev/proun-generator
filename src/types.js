@@ -40,7 +40,16 @@
  * @property {string} palette
  * @property {string} orientation
  * @property {TimeSettings} time
+ * @property {CompositionSettings} composition
  * @property {Record<string, ShapeSettings>} shapes  keyed by shape `type`
+ */
+
+/**
+ * @typedef {Object} CompositionSettings
+ * @property {string} strategy  'legacy' (independent placement, the original
+ *           generator) or a strategy in generator/strategies. A strategy
+ *           owns the shape counts: a type's `count` then only says whether
+ *           the type may be used (0 = excluded).
  */
 
 /**
@@ -50,6 +59,7 @@
  * @property {string[]} shapeTypes
  * @property {string[]} paletteNames
  * @property {string[]} orientationNames
+ * @property {string[]} [strategyNames]  selectable composition strategies (default: ['legacy'])
  * @property {string} defaultPalette
  * @property {string} defaultOrientation
  * @property {() => number} randomSeed
@@ -70,6 +80,9 @@
  * @property {[number, number, number]} rotation  Euler radians; ignored for facesCamera shapes
  * @property {[number, number, number]} scale
  * @property {string} hex
+ * @property {string} [role]  compositional role (anchor, support, connector,
+ *           accent, detail) when a composition strategy made the entry;
+ *           absent for the legacy generator
  */
 
 /**

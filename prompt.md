@@ -1,172 +1,248 @@
-# Proun Generator — Intelligent Material & Visual Dynamics
+# Proun Generator — Next Development Phase Roadmap
 
-Нужно спроектировать и реализовать следующий этап визуального развития Proun Generator. Не начинай с выбора конкретных шейдеров или эффектов. Сначала проработай концепцию и определи, как превратить её в последовательную, технически реалистичную систему.
+## Project goal
 
-## 1. Художественная цель
+Evolve the current functional MVP into a generative system inspired by El Lissitzky’s Proun works.
 
-Мы хотим получить изображение, которое воспринимается как **живопись на бумаге, но сохраняет синтетическую, цифровую природу**.
+The objective is not simply to add more primitives or visual effects. The generator should produce compositions with a convincing Proun-like spatial language: architectural structures, ambiguous depth, intersecting planes, deliberate tonal contrasts, graphic elements, and a restrained analog surface.
 
-Это не попытка физически симулировать бумагу, гуашь или акрил. Нужен процедурный псевдоматериал — собственная визуальная система, способная создавать ощущение пигмента, неоднородной поверхности, следов движения и аналоговой нестабильности.
+The project should retain its existing architecture where practical. Improvements must be incremental, reproducible, and based on the actual codebase.
 
-Главная цель — не просто добавить текстуру фигурам, а сделать изображение визуально выразительным во времени.
+## Working rules
 
-**Ключевой принцип: минимум геометрии, максимум выразительного визуального поведения.**
+- You maintain the codebase. Inspect the current implementation before proposing changes.
+- Do not assume that previous documentation accurately describes the current code.
+- Read the project documentation, configuration schemas, source code, and existing development notes before starting.
+- Preserve working features, existing presets, configuration compatibility, seeded randomness, and user settings unless a change is explicitly approved.
+- Do not rewrite major systems merely to accommodate a new feature.
+- Keep the UI minimal. Put experimental parameters in the existing lab where appropriate rather than exposing every parameter in the main interface.
+- Do not implement multiple roadmap stages in a single unreviewed change.
+- Before each stage, identify dependencies, risks, affected files, and acceptance criteria.
+- After each stage, run the available tests, TypeScript checks, and build. Report anything that could not be verified.
+- Ask questions when artistic intent or a technical decision is genuinely ambiguous. Do not silently invent requirements.
 
-## 2. От статического материала к Visual Dynamics System
+## Stage 0 — Codebase audit and implementation plan
 
-Материал не должен быть набором независимых эффектов. Его поведение должно зависеть от происходящего в композиции.
+Read the current source tree and documentation. Establish the actual state of the project before modifying anything.
 
-Сейчас композиция периодически меняется, а фигуры плавно переходят в новые состояния. Мы хотим превратить этот цикл в общую временную структуру, на которую могут реагировать разные части изображения.
+Pay particular attention to:
 
-Концептуальная схема:
+- Shape registry and geometry generation.
+- Composition generation and seeded randomness.
+- Collision resolution and shape dispersal.
+- Scene configuration and preset serialization.
+- Material and texture shaders.
+- Graphic shading and current lighting.
+- Tweening, Rhythm, and composition-change events.
+- Material laboratory and existing UI.
+- Rendering performance, resource disposal, and long-running animation behavior.
 
-**Composition → Rhythm & Events → Geometry / Material / Color / Background / Post-processing → Final Image**
+Deliverables:
 
-Это модель взаимодействия, а не требование создавать отдельный модуль для каждого пункта.
+1. A concise architecture map showing the current data flow.
+2. A list of existing capabilities, incomplete features, and technical limitations.
+3. A comparison between the current implementation and this roadmap.
+4. A dependency-aware implementation plan, including any proposed schema or API changes.
+5. A list of decisions requiring my approval.
 
-### Ритм и события
+Do not implement features during this stage. Resolve discrepancies between the documentation and actual code first.
 
-Изменение композиции — это событие, а не просто запуск tween-анимации.
+## Stage 1 — Lissitzky reference analysis and compositional grammar
 
-Когда начинается переход, разные визуальные системы могут реагировать на него по-разному:
-- геометрия начинает двигаться;
-- материал меняет характер или интенсивность;
-- цвет трансформируется по собственным правилам;
-- фон реагирует с другой задержкой или амплитудой;
-- финальная обработка изображения усиливает движение или постепенно возвращается к спокойному состоянию.
+Study a curated set of approximately 12–20 Proun works, including architectural compositions and examples with grids, curved structures, intersecting planes, and strong tonal contrasts.
 
-У этих реакций могут быть собственные фазы, задержки, продолжительность, интенсивность и затухание. При этом они должны восприниматься как части одного визуального ритма.
+Extract recurring visual principles rather than copying individual works.
 
-Текущий цикл композиции — например, несколько секунд между изменениями и около секунды на переход — должен служить общей временной опорой. Не привязывай всю систему к конкретным значениям: сохрани возможность менять ритм.
+Identify:
 
-Необязательно реализовывать полноценную событийную архитектуру. Найди самый простой способ передавать необходимую информацию о переходе всем заинтересованным системам.
+- Dominant axes and directional relationships.
+- Primary masses, secondary structures, and accents.
+- Relationships between volumes, frames, grids, and flat planes.
+- Depth ambiguity and projected overlap.
+- Tonal hierarchy and graphic shadows.
+- Color relationships and negative space.
+- Recurring geometric and graphic elements.
 
-## 3. Интеллектуальный материал
+Deliverables:
 
-Материал должен реагировать на временное состояние композиции, а не только постоянно отображать статический шум.
+1. A compact visual specification.
+2. A taxonomy of shape families and compositional roles.
+3. Three to five proposed composition strategies.
+4. A mapping from each principle to a possible implementation in the current architecture.
+5. A small set of visual acceptance criteria.
 
-В спокойном состоянии он может выглядеть относительно стабильным. Во время перехода — менять структуру, неоднородность, плотность пигмента, характер границ или другие визуальные свойства. После перехода он может постепенно возвращаться к исходному состоянию либо сохранять часть изменений.
+Do not implement the full composition engine yet. Present the findings for review.
 
-Это не означает, что материал обязательно должен буквально размазываться или становиться прозрачным. Его реакция может происходить на уровне структуры поверхности, распределения цвета или обработки изображения.
+## Stage 2 — Geometry and composition engine
 
-Рассматривай материал как систему с несколькими взаимосвязанными составляющими:
-- **Основа:** характер поверхности и базовое восприятие материала.
-- **Пигмент:** пространственная неоднородность, вариации покрытия и локальная плотность.
-- **Микровариации:** мелкие отклонения, нарушающие цифровую идеальность.
-- **Динамическая реакция:** изменения перечисленных свойств во время переходов.
+Extend the existing shape registry rather than introducing a parallel system.
 
-Это концептуальные составляющие, а не обязательное требование к количеству технических слоёв. Сохрани существующую трёхслойную модель, если она остаётся полезной, и расширяй её только при наличии веских причин.
+Investigate and, where justified, implement these shape families:
 
-## 4. Цвет как пространственный процесс
+- Volumes: existing solids and useful variations.
+- Frames and grids: open cuboids, repeated bars, structural lattices.
+- Curved structures: arches, rings, partial rings, extruded curved profiles.
+- Graphic elements: thin planes, lines, connectors, and shadow planes.
 
-Цвет не должен обязательно меняться посредством линейной интерполяции между двумя значениями.
+Introduce compositional roles where useful, such as anchor, support, connector, foreground, and detail.
 
-Рассмотри способы, при которых переход цвета становится пространственным явлением: локальное перераспределение пигмента, неоднородное проявление нового цвета, смещение цветовых областей, фрагментация, следы движения или другие подходящие алгоритмы.
+Implement a small number of composition strategies. Randomness should operate within compositional constraints rather than determine the entire arrangement independently.
 
-Это направления для исследования, а не список эффектов, которые нужно реализовать все сразу.
+Acceptance criteria:
 
-Цвет может изменяться с разной скоростью в разных областях фигуры. При этом результат должен оставаться графически цельным и соответствовать эстетике проекта, а не превращаться в случайный визуальный шум.
+- Existing shapes and presets continue to work.
+- New shapes have predictable dimensions and orientations.
+- The same seed reproduces the same composition.
+- Generated scenes exhibit a discernible structural hierarchy.
+- New composition rules remain configurable and testable.
 
-Палитра должна управлять не только выбором цветов, но и их взаимодействием в рамках всей композиции. Не усложняй формат палитры заранее — сначала определи, какие дополнительные данные действительно нужны для нового поведения.
+## Stage 3 — Spatial distribution, collisions, and overlap
 
-## 5. Фон как самостоятельная визуальная система
+Audit the current CollisionResolver and dispersal module before changing their algorithms.
 
-Фон не должен быть просто плоской подложкой или копией материала фигур.
+Separate three concerns:
 
-Он может иметь собственную пространственную структуру, тонкие вариации поверхности и отдельную реакцию на смену композиции. При этом он должен работать в рамках общей палитры и поддерживать фигуры, а не конкурировать с ними.
+1. Spatial distribution within a volume.
+2. Resolution of unintended 3D intersections.
+3. Projected overlap and visual composition.
 
-Рассматривай фон как независимую систему с собственным характером и временным поведением. Он может реагировать с задержкой, иначе менять интенсивность или оставаться почти неподвижным.
+Investigate controls for density, depth range, preferred separation, overlap tendency, structural cohesion, and solver relaxation.
 
-Не добавляй сложную текстуру фона только ради технической демонстрации. Любое изменение должно улучшать восприятие итогового изображения.
+Do not assume all projected overlaps are errors. Allow deliberate crossings and occlusions while avoiding accidental volume penetration where it damages the composition.
 
-## 6. Постобработка как финальный слой
+Add lab diagnostics where practical to distinguish 3D intersections from projected silhouette overlaps.
 
-Постобработка может объединять изображение в более цельную визуальную поверхность и усиливать ощущение аналоговой нестабильности.
+Acceptance criteria:
 
-Потенциальные направления:
-- очень тонкое размытие или след движения во время переходов;
-- зерно и микронеоднородность;
-- едва заметные цветовые смещения;
-- локальные искажения или интерференция;
-- контролируемые цифровые артефакты, если они соответствуют визуальному языку проекта.
+- Large shapes do not produce uncontrolled intersections under normal settings.
+- The solver does not unnecessarily scatter a coherent composition.
+- Intentional projected overlaps remain possible.
+- Seeded results are reproducible.
+- The solver's behavior can be diagnosed rather than tuned blindly.
 
-Не превращай это в набор постоянно включённых фильтров. Постобработка должна быть деликатной и осмысленной, а её интенсивность может зависеть от текущей фазы перехода.
+## Stage 4 — Graphic tonal system
 
-Сначала оцени, действительно ли постобработка необходима для выбранного художественного результата. Если её преимущества неочевидны, не усложняй рендеринг преждевременно.
+Develop a compositional shading system that does not depend entirely on physically realistic illumination.
 
-Отдельно учитывай производительность и экспорт PNG: финальное изображение должно сохранять согласованность с тем, что пользователь видит в сцене.
+Investigate:
 
-## 7. Контролируемая случайность
+- Face-based assignment of base, mid-tone, and shadow values.
+- Selective highlights.
+- Graphic shadow planes independent of actual light direction.
+- Tonal profiles appropriate to different shape families.
+- Palette-aware generation of darker and lighter variants.
 
-Случайность важна для живого характера материала, но она не должна разрушать целостность композиции.
+Reuse the existing material and shader infrastructure where appropriate.
 
-По возможности результат должен воспроизводиться при одинаковых настройках и seed. Определи, какие случайные процессы необходимо привязать к seed, а какие могут быть независимыми или медленно изменяться во времени.
+Acceptance criteria:
 
-Не допускай случайного скачка зерна или структуры материала при каждом кадре, если это не является осознанным визуальным эффектом.
+- Forms have a stronger tonal hierarchy and sense of depth.
+- Highlights and shadows can be intentionally inconsistent with physical lighting.
+- The result remains graphic and geometric rather than photorealistic.
+- Existing palettes remain usable.
+- The system avoids excessive controls and arbitrary per-object exceptions.
 
-Предпочтительны стабильные процедурные структуры, плавная эволюция и контролируемые вариации, а не мерцающий шум.
+## Stage 5 — Procedural analog materials and edge treatment
 
-## 8. Художественная сдержанность
+Audit the existing texture and shader system before expanding it.
 
-Необходимо сохранить геометрическую ясность, графическую силу и абстрактный характер Proun.
+Develop a coordinated material model with three conceptual layers:
 
-Не стремись сделать изображение максимально реалистичным, детализированным или «живописным» в традиционном смысле. Не добавляй эффекты только потому, что они доступны технически.
+1. Support: stable paper tone, subtle grain, and low-frequency variation.
+2. Pigment: uneven coverage, directional texture, and controlled tonal variation.
+3. Edge and print character: subtle contour irregularity, narrow edge softness, and restrained registration imperfections.
 
-Каждый эффект должен отвечать на вопрос: что именно он даёт изображению и почему это важно для визуальной идентичности проекта?
+Distinguish antialiasing, material edge softness, and global optical post-processing.
 
-Предпочтительнее один выразительный и хорошо интегрированный механизм, чем множество слабо связанных эффектов.
+Prioritize geometry-aware surface effects over generic noise overlays. Keep texture deterministic where possible, with explicit control over whether surface patterns remain fixed or evolve over time.
 
-## 9. План работы
+Investigate how the existing Rhythm and composition events can drive subtle material responses.
 
-Работай последовательно, не переходи сразу к масштабной реализации.
+Acceptance criteria:
 
-**Этап A — Концептуальная и техническая модель**
+- Geometry remains legible and crisp.
+- Texture does not overwhelm the composition.
+- Edge softness is subtle and controllable.
+- Surface patterns are reproducible from configuration and seed.
+- Materials can respond to transitions without becoming distracting.
 
-Проанализируй текущую реализацию в контексте описанной цели. Определи:
-- какие существующие механизмы можно использовать без существенных изменений;
-- как лучше связать смену композиции с реакциями материала, цвета и фона;
-- какие параметры должны быть общими, а какие — независимыми;
-- где разумнее реализовать эффекты: в существующих материалах, в логике переходов или на этапе постобработки;
-- какие решения создадут лишнюю сложность или риски для производительности.
+Heavy blur, pronounced trails, and strong chromatic aberration are out of scope for the initial implementation.
 
-Предложи компактную архитектуру и последовательность экспериментов. Не переписывай работающие подсистемы без необходимости.
+## Stage 6 — Long-duration, staggered animation
 
-**Этап B — Минимальный визуальный прототип**
+Extend the current Tween and Rhythm systems rather than replacing them without evidence.
 
-Начни с одного хорошо выбранного эксперимента, который позволит оценить главный принцип: материал реагирует на событие смены композиции и создаёт выразительное, контролируемое изменение изображения.
+Target default timing:
 
-Прототип должен позволить сравнить спокойное состояние и переход. Не пытайся сразу реализовать все направления из этого документа.
+- Hold: 15 minutes.
+- Transition window: 1 minute.
 
-Сформулируй критерии визуального успеха и технические ограничения. Если первая идея выглядит неубедительно, пересмотри подход до расширения системы.
+Retain short timing presets for development and experimentation.
 
-**Этап C — Поэтапная реализация**
+Introduce per-object motion scheduling with deterministic delays, durations, easing, and movement amplitudes. Large anchor structures and smaller details should be able to follow different motion profiles.
 
-После проверки прототипа развивай систему небольшими независимыми шагами. Приоритеты:
-1. Связать переход композиции с общей временной моделью.
-2. Реализовать одну выразительную реакцию материала.
-3. Исследовать пространственное поведение цвета.
-4. При необходимости добавить самостоятельное поведение фона.
-5. Оценить необходимость и пользу постобработки.
-6. Проверить согласованность палитры, детерминизма, производительности и экспорта.
+Coordinate geometry, tonal changes, and material responses without forcing every effect to start simultaneously.
 
-Порядок может измениться, если анализ покажет более рациональный путь.
+Investigate transition interruption, retargeting, tab suspension, resuming, and long-running clock behavior.
 
-## 10. Технические ограничения
+Acceptance criteria:
 
-- Сохраняй существующую функциональность и текущую архитектуру там, где это оправданно.
-- Не переписывай генератор композиций и систему геометрии ради эффектов материала.
-- Не вводи новую библиотеку, сложный event bus или универсальный фреймворк эффектов без доказанной необходимости.
-- Избегай лишних вычислений и выделения памяти каждый кадр.
-- Следи за временем жизни GPU-ресурсов и корректным освобождением материалов и текстур.
-- Не ломай настройки сцены, пресеты, ссылки на конфигурации и экспорт.
-- Не добавляй новые пользовательские настройки, пока не станет ясно, какие из них действительно влияют на результат.
-- Если постобработка требует изменения рендерингового контура, оцени стоимость этого изменения до реализации.
-- Проверяй тесты, типизацию и сборку. Визуальную корректность оценивай отдельно в браузере; не утверждай, что результат визуально удался, если ты его фактически не проверил.
+- Objects transition without visible position or rotation jumps.
+- Motion is staggered and compositionally coherent.
+- A new target composition does not corrupt active tweens.
+- Long hold periods remain visually stable.
+- Material changes can follow geometry with independent delays.
+- Playback remains reliable over extended sessions.
+- Timing is configurable and does not depend on a particular frame rate.
 
-## 11. Что должно получиться
+## Stage 7 — Exhibition mode and final integration
 
-В результате нам нужна не просто новая текстура и не коллекция шейдеров, а **система, которая генерирует композицию и её визуальное поведение во времени**.
+Once the previous stages are stable, investigate:
 
-Сначала представь краткую модель системы, ключевые решения и план экспериментов. Затем приступай к первому прототипу, не расширяя масштаб работы без промежуточной проверки.
+- Minimal full-screen display mode.
+- Optional automatic progression between compositions.
+- Curated composition presets.
+- Reliable saving and restoration of scene configurations.
+- High-quality still-image export, if compatible with the current architecture.
+- Long-session memory and GPU resource management.
+- Optional restrained post-processing.
 
-В финальном отчёте укажи, что именно реализовано, как оно связано с ритмом композиции, какие решения приняты для материала и цвета, каковы ограничения производительности и экспорта, какие проверки выполнены и какие художественные эксперименты стоит провести дальше.
+Do not prioritize exhibition features over the quality of the generated compositions.
+
+Acceptance criteria:
+
+- A scene can run for hours without progressive degradation.
+- Presets and configuration restoration remain reliable.
+- The interface can be hidden without disrupting playback.
+- Exported images match the intended rendered composition.
+- All major systems work together without introducing regressions.
+
+## Cross-stage requirements
+
+Maintain a small regression suite of fixed seeds and reference configurations.
+
+For every stage:
+
+1. Identify the affected modules and their contracts.
+2. Implement the smallest coherent change.
+3. Run available automated tests and checks.
+4. Compare results against the fixed reference scenes.
+5. Document configuration changes and migration requirements.
+6. Report completed work, known limitations, and the next decision needed.
+
+Avoid unrelated refactoring. Do not introduce new dependencies without explaining their value and maintenance cost.
+
+## Priority order
+
+1. Audit the codebase.
+2. Establish the visual grammar.
+3. Improve geometry and composition.
+4. Resolve spatial behavior.
+5. Improve tonal design.
+6. Improve materials and edges.
+7. Implement long-duration animation.
+8. Add exhibition features and optional post-processing.
+
+The central principle is to improve the generator's ability to construct convincing Proun-like compositions before adding more visual complexity.
+
+Begin with Stage 0 only. Wait for my review before implementing Stage 1.

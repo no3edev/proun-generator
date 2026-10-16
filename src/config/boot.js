@@ -11,7 +11,7 @@ import { loadSession } from './session.js';
 import { decodeShare, hasShareParam } from './share.js';
 
 /**
- * @param {{ replace(raw: unknown): unknown, update(patch: unknown): unknown }} config
+ * @param {{ replace(raw: unknown): unknown, update(patch: unknown): unknown, get(): { shapes: Record<string, unknown> } }} config
  * @param {{ storage: import('./session.js').StorageLike | null | undefined, hash: string }} source
  * @returns {{ source: 'link' | 'session' | 'default', hadLink: boolean }}
  *   hadLink: the fragment contained a share link (valid or not) — the caller
@@ -30,6 +30,11 @@ export function restoreConfig(config, { storage, hash }) {
   const hadLink = hasShareParam(hash);
   const link = hadLink ? decodeShare(hash) : null;
   if (link) {
+    // a link describes the whole composition: a shape type it doesn't list
+    // (one added since the link was made) is off, not whatever the viewer has
+    Object.keys(config.get().shapes).forEach((type) => {
+      if (!link.shapes[type]) link.shapes[type] = { count: 0, locked: null, snapRotation: false };
+    });
     config.update(link);
     used = 'link';
   }

@@ -3,8 +3,11 @@ import { Palette } from '../palette/Palette.js';
 import { SceneConfig } from '../config/store.js';
 import { randomSeed } from '../generator/rng.js';
 import { generateLayout } from '../generator/generate.js';
+import { layoutCounts } from '../generator/layoutCounts.js';
 import { Billboard } from './Billboard.js';
 import { Tween } from './Tween.js';
+import { Rhythm } from './Rhythm.js';
+import { paintSeed } from '../texture/paintSeed.js';
 import { paintMesh, disposeMesh } from '../texture/materials.js';
 import { shapeRegistry, getShape } from '../shapes/registry.js';
 
@@ -63,6 +66,8 @@ function place(mesh, entry, shape) {
 
 function createInstance(shape, entry, visible) {
   const mesh = shape.create(entry.hex);
+  // the paint of this slot (see texture/paintSeed.js)
+  if (mesh.userData.front) mesh.userData.front.uSeed.value.set(...paintSeed(entry.type, entry.index));
   place(mesh, entry, shape);
   mesh.visible = visible;
   sceneRef.add(mesh);
@@ -76,22 +81,36 @@ function removeInstance(mesh) {
 }
 
 function onConfigChange(next, prev, meta) {
+  let entries = null;
   let layout = null;
+  const list = () => entries || (entries = layoutFor(next));
   const byKey = () => {
     if (!layout) {
       layout = new Map();
-      layoutFor(next).forEach((e) => layout.set(`${e.type}:${e.index}`, e));
+      list().forEach((e) => layout.set(`${e.type}:${e.index}`, e));
     }
     return layout;
   };
   const fresh = new Set();
 
+  // Under the legacy generator a type holds exactly its configured `count`
+  // instances. Under a composition strategy the strategy owns the counts
+  // (config count only says "may be used"), so the pools follow the layout.
+  const strategyOn = next.composition.strategy !== 'legacy';
+  const strategyChanged = next.composition.strategy !== prev.composition.strategy;
+  const wanted = strategyOn ? layoutCounts(list()) : null;
+  const inclusionChanged = shapeRegistry.some((shape) => {
+    const a = next.shapes[shape.type], b = prev.shapes[shape.type];
+    return (a.count > 0) !== (b.count > 0) || !!a.locked !== !!b.locked;
+  });
+
   shapeRegistry.forEach((shape) => {
     const arr = instances[shape.type];
     const s = next.shapes[shape.type];
+    const want = wanted ? (wanted.get(shape.type) || 0) : s.count;
 
-    while (arr.length > s.count) removeInstance(arr.pop());
-    while (arr.length < s.count) {
+    while (arr.length > want) removeInstance(arr.pop());
+    while (arr.length < want) {
       // new instances appear at their own generated position immediately
       // (not eased in); the next advance re-resolves everything together
       const mesh = createInstance(shape, byKey().get(`${shape.type}:${arr.length}`), s.visible);
@@ -104,7 +123,15 @@ function onConfigChange(next, prev, meta) {
     }
   });
 
-  if (meta.replaced || next.seed !== prev.seed || next.palette !== prev.palette) {
+  if (
+    meta.replaced || next.seed !== prev.seed || next.palette !== prev.palette || strategyChanged
+    // a strategy composes the whole frame: the frame's shape (orientation) and which
+    // types take part are inputs to it, so changing them recomposes the scene
+    || (strategyOn && (next.orientation !== prev.orientation || inclusionChanged))
+  ) {
+    // the composition change is an event: tell the shared clock, so every
+    // visual system reads the same rhythm (see core/Rhythm.js)
+    Rhythm.trigger(next.time.durationMs, next.time.autoAdvance ? next.time.intervalMs : 0);
     byKey().forEach((entry, key) => {
       const mesh = instances[entry.type][entry.index];
       if (mesh && !fresh.has(mesh)) Tween.add(mesh, toTarget(entry), next.time.durationMs);

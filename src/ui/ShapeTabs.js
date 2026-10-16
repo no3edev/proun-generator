@@ -128,6 +128,11 @@ export function buildShapeTabs(container) {
     countRow.appendChild(plusBtn);
     countField.appendChild(countLabel);
     countField.appendChild(countRow);
+    // shown only while a composition strategy is active (see panel.css)
+    const countHint = document.createElement('p');
+    countHint.className = 'count-hint';
+    countHint.textContent = 'The composition strategy sets how many appear. 0 leaves this shape out.';
+    countField.appendChild(countHint);
 
     // --- size range (dual-handle slider) ---
     // Logarithmic mapping so the useful 0.5–2× zone isn't squeezed into

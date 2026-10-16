@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { BOUNDS, ROTATION_SNAP } from '../config/defaults.js';
 import { computeAABB, resolveCollisions } from './CollisionResolver.js';
 import { createRng } from './rng.js';
+import { STRATEGIES } from './strategies/index.js';
+import { runStrategy } from './strategies/run.js';
 
 // The composition generator: a pure function of (config, palette, shapes,
 // camera view). No DOM, no meshes, no Math.random, no module state — the
@@ -108,9 +110,10 @@ function lockedCandidate(shape, entry, index, billboard) {
 
 /**
  * @param {object} args
- * @param {Pick<import('../types.js').SceneConfigState, 'seed' | 'shapes'>} args.config
- *        a SceneConfig state (only seed and shapes are read here)
- * @param {{ accents: string[], ink?: string }} args.palette
+ * @param {Pick<import('../types.js').SceneConfigState, 'seed' | 'shapes'> & Partial<Pick<import('../types.js').SceneConfigState, 'composition' | 'orientation'>>} args.config
+ *        a SceneConfig state (seed and shapes are always read; `composition`
+ *        picks the strategy, and `orientation` sizes the frame it composes in)
+ * @param {{ accents: string[], ink?: string, paper?: string }} args.palette
  * @param {ShapeDef[]} args.shapeDefs the shape registry
  * @param {{ depthAxis: THREE.Vector3, billboard: THREE.Quaternion }} args.view
  *        the camera's depth direction and camera-facing orientation, passed
@@ -118,6 +121,13 @@ function lockedCandidate(shape, entry, index, billboard) {
  * @returns {LayoutEntry[]} ordered by shape (registry order), then index
  */
 export function generateLayout({ config, palette, shapeDefs, view }) {
+  // A composition strategy (strategies/) composes the scene instead of the
+  // independent placement below. 'legacy', missing, or an unknown name all
+  // take the original path, so existing seeds, presets and links are untouched.
+  const strategy = config.composition ? STRATEGIES[config.composition.strategy] : undefined;
+  if (strategy) {
+    return runStrategy({ strategy, config: /** @type {any} */ (config), palette, shapeDefs, view });
+  }
   /** @type {(ReturnType<typeof buildCandidate> & { fixed?: boolean })[]} */
   const candidates = [];
   /** the subset that takes part in collision resolution @type {typeof candidates} */

@@ -1,4 +1,131 @@
-# Release Notes
+## v0.6.1 — Stage 2.2 (A): the Beam shape (unreleased)
+
+No existing scene changes: the beam starts at count 0 (like the rod), the 27 earlier golden layouts are byte-identical, and the
+legacy and Axis thrust scenes render as before unless beams are switched on.
+
+### Added
+
+- **Beam** (`src/shapes/beam.js`): a long bar with predictable dimensions (local x = length 2.6-5.0; section 0.11-0.30 by 0.7-1.6
+  of that; at least ~5x as long as thick), with its own face tones (end faces darkest, long faces spread about 1.8:1). Its tab has a
+  glyph in `ui/shapeIcons.js`.
+- Axis thrust uses the beam for its bars when it is enabled (chunkier than the stand-in boxes: 6-40x as long as thick), and a very
+  thin beam for the hairlines when no rod, box or plank is enabled.
+- Golden reference scenes for legacy beams and Axis thrust beams (33 in all); tests in `tests/beam.test.js`.
+
+### Fixed
+
+- **A type missing from an older preset or share link kept the viewer's current settings.** With the beam added, someone who had
+  beams enabled would get extra beams from an old preset or link, so it would not restore its own composition. A type a record
+  never mentions now takes its own default (off for the rod and the beam), and a link turns unlisted types off. (This also
+  applies to the rod, which had the same gap when it was added.)
+
+### Known limits (next step, 2.2 B)
+
+- Segment/crescent, outline frame, and ring or partial ring shapes are still to come; the beam's tones are a shape-level first
+  step, and the general tonal system is Stage 4.
+- Enabled beams push their neighbours through depth like any solid, and their long rotated bounds make the solver spread them
+  widely (Stage 3).
+
+## v0.6.0 — Stage 2.1: composition strategies, and Axis thrust (unreleased)
+
+The generator can now compose a scene around a structure instead of placing every shape independently. The original generator is
+**legacy** and remains the default: existing seeds, presets and links are unchanged (the 15 legacy golden layouts are byte-identical,
+and four legacy scenes render pixel-identically before and after).
+
+### Added
+
+- **Composition strategies** (`src/generator/strategies/`): `composition.strategy` in the config (schema **v3**; v1/v2 configs,
+  presets and links load as legacy). The strategy owns the shape counts (a type's count only includes/excludes it). Selected in
+  the Lab control on the Shapes tab ("Composition · experimental"); it moves to the main panel at step 2.4.
+- **Axis thrust**, the first strategy: a dominant diagonal, one anchor, beams, accents in one accent hue, hairlines; built from the
+  existing shapes. Entries carry a `role`.
+- **One saturated accent hue per scene**, classified from palette colours by saturation (no palette changes).
+- Share links carry the strategy as an additive field `c` (absent for legacy: legacy links are byte-for-byte as before).
+- `npm run diagnose` reports the strategy scenes; new golden reference scenes for Axis thrust.
+
+### Fixed
+
+- **History remembered only seed and palette.** Back/forward would have shown a different picture for a composition made under
+  another strategy (the same seed means something different per strategy). Entries now carry the strategy, and switching strategy on
+  the same seed is a step.
+- **Presets did not persist `composition`.** PresetStore stores named fields only; `composition` is now one of them.
+
+### Changed
+
+- `Composition` sizes its mesh pools from the layout when a strategy is active (a strategy's counts are not the config's); with
+  legacy it is unchanged. Changing a strategy, the orientation or which types are included recomposes the scene.
+
+### Known limits (next steps)
+
+- Beams are `cube-variable` / `plane` boxes; dedicated beam, segment, frame and ring shapes come in 2.2.
+- Volumes shade with the legacy per-face tones (an unrotated cube reads as a hexagon): the tonal system is Stage 4.
+- The depth solver is unchanged (Stage 3). Under Axis thrust only ~1% of box pairs truly intersect, but the solver spreads shapes
+  over a wide depth range (mean span 12.7 units, legacy 3.3), so intended in-front/behind interlacing is not guaranteed.
+
+## v0.5.1 — Stage 0b: regression harness and clip-plane fix (unreleased)
+
+No change to what any seed produces. Roadmap context: audit, then this prerequisite, before any generator work.
+
+### Fixed
+
+- **Shapes were clipped by the camera's near plane.** Collision resolution slides shapes along the view axis, and with many or
+  large shapes it takes them dozens of units either way; the camera's clip planes (0.1 .. 100 from the camera, which sits 7.5 from
+  the origin) cut away or sliced anything pushed more than ~7.4 units toward it (in the audit: 67% of scenes with 2 of each box at
+  size 2-3, and 90% with 4 of each). The camera is orthographic, so the planes only decide what is clipped, never where anything
+  lands: they are now `CAMERA.near = -100`, `CAMERA.far = 200` (config/defaults.js; a negative near plane is legal for an
+  orthographic camera). Layouts, seeds, presets and links are untouched; default-size scenes render pixel-identically.
+
+### Added
+
+- `tests/`: `golden` (15 fixed reference scenes), `generate`, `collision`, `sceneConfig`, `camera`; fixtures in `tests/helpers/`.
+- `npm run golden:update` (regenerate the reference layouts, deliberately) and `npm run diagnose` (solver overlap / clipping rates).
+
+### Known, not changed here (Stage 3)
+
+- After resolution, 5-6% of box pairs at 3 of each (true oriented-box overlap) still intersect; the solver stops after 8 tries per
+  shape and tests conservative axis-aligned bounds. Tracked by a `todo` in `tests/collision.test.js` and by `npm run diagnose`.
+
+## v0.5.0 — Visual dynamics (unreleased)
+
+The image now has behaviour over time: a composition change is an event that the colour, the paint and the
+ground react to on their own timings. Handoff and rationale: `docs/PROJECT_STATE.md`.
+
+### New
+
+- **Shared event clock** (`core/Rhythm.js`) fed by composition changes.
+- **Colour change as overpainting.** The new colour arrives in broken coverage along the paint's own density, over the old
+  one; only the two colours appear, plus a small tonal shift. A change that interrupts another keeps the layer in flight
+  (no pop). Switchable against the classic RGB lerp in the lab.
+- **Procedural paint on the shapes** (three bands with their own scale rules: physical tooth, strokes along the long side,
+  stains with the form), deterministic per-slot seed, no stretching or tile seam, sharp at any export size. The old pattern
+  stays behind a lab switch. The sphere is not covered.
+- **The ground**: a procedural layer behind the shapes (mottle, speckle, optional hairline cracks), constant seed,
+  resolution-independent. It replaces the earlier overlay-opacity pulse (which darkened the shapes and jumped in brightness).
+- **Ground morph.** Every composition seed has its own ground imprint (mottle + crack network). After a change the ground morphs
+  once, one way, to the new imprint (deforming and condensing a little mid-morph); mean-neutral; a change mid-morph retargets
+  smoothly; the pattern at rest depends only on the seed. Lab control to pin the cracks (*Cracks vary*).
+- **Material lab** (session-local, outside the `SceneConfig`): generated from one schema, with *Copy defaults* (prints a `DYNAMICS`
+  fragment) and *Reset lab*, *Pause and scrub* (a Step slider over the last change, geometry and colour), and a frame-rate readout.
+- **Panel in tabs:** Scene, Shapes, Motion, Surface, with Advance / Export / Copy link pinned; lab groups are marked "lab" and
+  start collapsed.
+- `tools/verify/`: headless-browser verification harness.
+
+### Changed / fixed
+
+- Defaults taken from review: colour edge 0.62, grain 0.94, tone 0.045; ground visibility 0.022, scale 0.5, cracks 0.78, crack size 0.65,
+  elongation 3.2.
+- Reproducibility: the paper overlay and the pigment pool no longer use `Math.random` (seeded streams): a share link reproduces
+  the picture pixel for pixel. Crack line weight is physical, so exports match the screen at every size.
+- Stroke direction changes smoothly with a face's proportions instead of flipping in one frame.
+- Colour-change arrival order is spread evenly over the paint's density range.
+
+### Notes for merging
+
+- New files: `core/Rhythm.js`, `lab/*`, `texture/{PigmentResponse,GroundLayer,noiseGLSL,paintSeed}.js`, `ui/{PanelTabs,LabPanel}.js`, `tests/*`
+  (8 suites), `tools/verify/*`, `docs/PROJECT_STATE.md`. `ui/PanelTabs.js` is **not** `ui/tabs.js` (pre-existing, used by the shape tabs).
+- Changed: `index.html` (tab pages; ids unchanged), `core/{Tween,Composition,SceneManager}.js`, `texture/{materials,noise,PaperTexture,PigmentLayer}.js`,
+  `config/defaults.js` (adds `DYNAMICS`), `ui/panel.css`, `main.js`.
+- Tests that assume the classic colour lerp in `Tween` need `setColorFront({ enabled: false })` (see `docs/PROJECT_STATE.md` §11).
 
 ## v0.4.0 — 2026-10-10
 

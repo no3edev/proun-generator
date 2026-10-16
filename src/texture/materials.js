@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { pickStructureTexture } from './PigmentLayer.js';
+import { installPigmentResponse } from './PigmentResponse.js';
 
 // COLOR / SHADING CONTRACT
 //
@@ -69,9 +70,22 @@ export function materialSetMesh(geo, hex, shadeMultipliers, shapeType, materialO
     color: shadeColor(hex, mult),
     map: grainTexture()
   }));
+  // dynamic pigment response (see PigmentResponse.js): a no-op until a
+  // composition change raises the shared energy
+  // `front` is the mesh's color-front state (see PigmentResponse.js), shared
+  // by all its materials; Tween drives it
+  const front = {
+    uFront: { value: 1 },       // the change in flight: 0 -> 1
+    uFrontA: { value: 1 },      // the layer it interrupted, frozen where it was (1 = none)
+    uFrom: { value: new THREE.Color(hex) },
+    uMid: { value: new THREE.Color(hex) },
+    uSeed: { value: new THREE.Vector2() }
+  };
+  mats.forEach((mat, i) => installPigmentResponse(mat, shadeMultipliers[i], geo, front, i));
   const mesh = new THREE.Mesh(geo, mats.length === 1 ? mats[0] : mats);
   mesh.userData.shapeType = shapeType;
   mesh.userData.baseColor = new THREE.Color(hex);
+  mesh.userData.front = front;
   mesh.userData.applyShade = (base) => {
     for (let i = 0; i < mats.length; i++) {
       mats[i].color.copy(clampColor(scratch.copy(base).multiplyScalar(shadeMultipliers[i])));

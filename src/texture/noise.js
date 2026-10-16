@@ -8,6 +8,32 @@
 // structure canvases be built once and reused across every palette
 // and every random accent color a shape ever gets.
 
+import { createRng } from '../generator/rng.js';
+
+// Everything below draws from `rand`, never Math.random, so the paper and
+// the pigment pool are the same on every load: a share link (and a re-export)
+// reproduces the picture's grain, not just its layout. `withNoiseSeed` gives
+// each generator its own stream, so the result does not depend on the order
+// things are built in.
+let rand = createRng('noise');
+
+/**
+ * Runs `fn` with the noise functions drawing from a stream keyed by `parts`.
+ * @template T
+ * @param {Array<string | number>} parts
+ * @param {() => T} fn
+ * @returns {T}
+ */
+export function withNoiseSeed(parts, fn) {
+  const previous = rand;
+  rand = createRng(...parts);
+  try {
+    return fn();
+  } finally {
+    rand = previous;
+  }
+}
+
 /**
  * Multiply-blends a soft, blurred random field onto ctx: a low-res
  * grid of random gray values, scaled up with bilinear smoothing so it
@@ -21,7 +47,7 @@ export function blurredNoise(ctx, w, h, cells, amplitude) {
   const sctx = small.getContext('2d');
   const img = sctx.createImageData(cells, cells);
   for (let i = 0; i < img.data.length; i += 4) {
-    const v = 255 - Math.round(Math.random() * amplitude * 255);
+    const v = 255 - Math.round(rand() * amplitude * 255);
     img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
     img.data[i + 3] = 255;
   }
@@ -47,10 +73,10 @@ export function softBlotches(ctx, w, h, count, opts = {}) {
   ctx.save();
   ctx.globalCompositeOperation = 'multiply';
   for (let i = 0; i < count; i++) {
-    const x = Math.random() * w;
-    const y = Math.random() * h;
-    const r = (minR + Math.random() * (maxR - minR)) * Math.max(w, h);
-    const a = minA + Math.random() * (maxA - minA);
+    const x = rand() * w;
+    const y = rand() * h;
+    const r = (minR + rand() * (maxR - minR)) * Math.max(w, h);
+    const a = minA + rand() * (maxA - minA);
     const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
     grad.addColorStop(0, `rgba(0,0,0,${a})`);
     grad.addColorStop(1, 'rgba(0,0,0,0)');
@@ -73,14 +99,14 @@ export function brushStrokes(ctx, w, h, count) {
   ctx.globalCompositeOperation = 'multiply';
   ctx.lineCap = 'round';
   for (let i = 0; i < count; i++) {
-    const x = Math.random() * w;
-    const y = Math.random() * h;
-    const len = (0.1 + Math.random() * 0.2) * Math.max(w, h);
-    const angle = Math.random() * Math.PI;
+    const x = rand() * w;
+    const y = rand() * h;
+    const len = (0.1 + rand() * 0.2) * Math.max(w, h);
+    const angle = rand() * Math.PI;
     const x2 = x + Math.cos(angle) * len;
     const y2 = y + Math.sin(angle) * len;
-    ctx.strokeStyle = `rgba(0,0,0,${0.02 + Math.random() * 0.04})`;
-    ctx.lineWidth = (0.015 + Math.random() * 0.02) * Math.max(w, h);
+    ctx.strokeStyle = `rgba(0,0,0,${0.02 + rand() * 0.04})`;
+    ctx.lineWidth = (0.015 + rand() * 0.02) * Math.max(w, h);
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(x2, y2);
@@ -98,13 +124,13 @@ export function fiberLines(ctx, w, h, count) {
   ctx.save();
   ctx.globalCompositeOperation = 'multiply';
   for (let i = 0; i < count; i++) {
-    const x = Math.random() * w;
-    const y = Math.random() * h;
-    const len = (0.15 + Math.random() * 0.35) * Math.max(w, h);
-    const angle = (Math.random() - 0.5) * 0.6;
+    const x = rand() * w;
+    const y = rand() * h;
+    const len = (0.15 + rand() * 0.35) * Math.max(w, h);
+    const angle = (rand() - 0.5) * 0.6;
     const x2 = x + Math.cos(angle) * len;
     const y2 = y + Math.sin(angle) * len;
-    ctx.strokeStyle = `rgba(0,0,0,${0.015 + Math.random() * 0.02})`;
+    ctx.strokeStyle = `rgba(0,0,0,${0.015 + rand() * 0.02})`;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x, y);
@@ -127,7 +153,7 @@ export function microJitter(ctx, w, h, amplitude) {
   const img = ctx.getImageData(0, 0, w, h);
   const d = img.data;
   for (let i = 0; i < d.length; i += 4) {
-    const n = (Math.random() - 0.5) * amplitude * 255;
+    const n = (rand() - 0.5) * amplitude * 255;
     d[i] = Math.max(0, Math.min(255, d[i] + n));
     d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n));
     d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n));

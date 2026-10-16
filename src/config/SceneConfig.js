@@ -9,6 +9,10 @@ import { randomSeed as defaultRandomSeed } from '../generator/rng.js';
 /** @typedef {import('../types.js').ShapeSettings} ShapeSettings */
 /** @typedef {import('../types.js').TimeSettings} TimeSettings */
 /** @typedef {import('../types.js').ConfigMeta} ConfigMeta */
+/** @typedef {import('../types.js').CompositionSettings} CompositionSettings */
+
+/** The strategy every config starts with and falls back to: the original generator. */
+export const LEGACY_STRATEGY = 'legacy';
 
 // The scene's single source of truth: one small serializable object that
 // fully describes what is on screen (together with the shape registry).
@@ -16,6 +20,7 @@ import { randomSeed as defaultRandomSeed } from '../generator/rng.js';
 //   {
 //     version, seed, palette, orientation,
 //     time:   { durationMs, intervalMs, autoAdvance },
+//     composition: { strategy },
 //     shapes: { [type]: { visible, count, sizeMin, sizeMax, spread } }
 //   }
 //
@@ -34,8 +39,10 @@ import { randomSeed as defaultRandomSeed } from '../generator/rng.js';
  * and add a step to MIGRATIONS.
  *   1  (legacy) no seed — loading a preset re-rolled the composition
  *   2  adds `seed` — loading a preset restores the exact composition
+ *   3  adds `composition.strategy` — absent (every v1/v2 config) means 'legacy',
+ *      the original generator, so older presets and links give the same layouts
  */
-export const CONFIG_VERSION = 2;
+export const CONFIG_VERSION = 3;
 
 /**
  * Migration steps: MIGRATIONS[n] takes a raw version-n object and returns
@@ -48,7 +55,10 @@ export const CONFIG_VERSION = 2;
 export const MIGRATIONS = {
   // v1 -> v2: `seed` was added. A v1 config has none; normalizeConfig then
   // gives the loaded config a fresh seed (a re-roll, as v1 always was).
-  1: (raw) => ({ ...raw })
+  1: (raw) => ({ ...raw }),
+  // v2 -> v3: `composition` was added. A v2 config has none; normalizeConfig
+  // reads that as the legacy strategy.
+  2: (raw) => ({ ...raw })
 };
 
 /**
@@ -124,6 +134,16 @@ function normalizeTime(base, patch) {
     intervalMs: isNum(p.intervalMs) ? clampInterval(p.intervalMs) : base.intervalMs,
     autoAdvance: typeof p.autoAdvance === 'boolean' ? p.autoAdvance : base.autoAdvance
   };
+}
+
+/**
+ * A valid strategy name: `name` if it is one of the context's, else legacy.
+ * @param {unknown} name
+ * @param {SceneConfigContext} ctx
+ */
+function normalizeStrategy(name, ctx) {
+  const names = ctx.strategyNames || [LEGACY_STRATEGY];
+  return typeof name === 'string' && names.includes(name) ? name : LEGACY_STRATEGY;
 }
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
@@ -215,6 +235,7 @@ export function createDefaultConfig({ shapeTypes, defaultPalette, defaultOrienta
       intervalMs: TIME.intervalMs.default,
       autoAdvance: false
     },
+    composition: { strategy: LEGACY_STRATEGY },
     shapes
   });
 }
@@ -250,7 +271,10 @@ export function normalizeConfig(raw, base, ctx) {
         snapRotation: saved.snapRotation === true,
         locked: normalizeLocked(saved.locked)
       })
-      : base.shapes[type];
+      // a type the record never mentioned (typically one added since it was
+      // saved) was not part of that composition: it takes the type's own
+      // default (off for the rod and the beam), never the current settings
+      : normalizeShape({ ...SHAPE_DEFAULTS }, (ctx.shapeDefaults || {})[type]);
   });
 
   const seed = normalizeSeed(src.seed);
@@ -261,6 +285,8 @@ export function normalizeConfig(raw, base, ctx) {
     orientation: ctx.orientationNames.includes(src.orientation) ? src.orientation : base.orientation,
     // a preset that doesn't say autoAdvance means off
     time: normalizeTime(base.time, { ...(src.time || {}), autoAdvance: !!(src.time && src.time.autoAdvance) }),
+    // a preset that doesn't say means legacy (like autoAdvance, never inherited)
+    composition: { strategy: normalizeStrategy(src.composition && src.composition.strategy, ctx) },
     shapes
   });
 }
@@ -279,6 +305,10 @@ function applyPatch(state, patch, ctx) {
   const seed = normalizeSeed(p.seed);
   if (seed !== null) next.seed = seed;
   if (p.time) next.time = normalizeTime(state.time, p.time);
+  if (p.composition && typeof p.composition === 'object' && typeof p.composition.strategy === 'string') {
+    const names = ctx.strategyNames || [LEGACY_STRATEGY];
+    if (names.includes(p.composition.strategy)) next.composition = { strategy: p.composition.strategy };
+  }
   if (p.shapes && typeof p.shapes === 'object') {
     next.shapes = { ...state.shapes };
     Object.keys(p.shapes).forEach((type) => {
