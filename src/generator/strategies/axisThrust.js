@@ -5,6 +5,7 @@ import {
   screenDirection, barOrientation, flatOrientation, blockOrientation,
   luminance, pickWeighted, between, rad
 } from './common.js';
+import { ANGLE_FAMILIES, thrustAngle, T, sizeMult, spreadOf, scaleFor } from './shared.js';
 
 /** @typedef {import('./run.js').PlanItem} PlanItem */
 /** @typedef {import('./run.js').PlanContext} PlanContext */
@@ -27,32 +28,7 @@ import {
 // in screen units (the frame is 6 high), and scaled by each shape's own
 // size multiplier and spread settings, as in the legacy generator.
 
-/** The thrust-angle families seen in the references, in degrees (+ rising to the right). */
-export const ANGLE_FAMILIES = /** @type {const} */ ([
-  [[12, 25], 0.25],
-  [[38, 46], 0.45],
-  [[54, 62], 0.30]
-]);
-
-const T = {
-  circle: 'circle', cube: 'cube-fixed', block: 'cube-variable',
-  sphere: 'sphere', triangle: 'triangle', plane: 'plane', rod: 'rod', beam: 'beam'
-};
-
-/** @param {PlanContext} ctx @param {string} type @param {() => number} rng */
-function sizeMult(ctx, type, rng) {
-  const s = ctx.settings[type];
-  return s.sizeMin + rng() * (s.sizeMax - s.sizeMin);
-}
-const spreadOf = (/** @type {PlanContext} */ ctx, /** @type {string} */ type) => ctx.settings[type].spread;
-
-/** Scale that gives a shape the stated world-space extents along its local axes. */
-function scaleFor(/** @type {PlanContext} */ ctx, /** @type {string} */ type, /** @type {number} */ x, /** @type {number} */ y, /** @type {number} */ z) {
-  const he = /** @type {import('../../types.js').ShapeDef} */ (ctx.shapes.get(type)).localHalfExtents;
-  /** @type {[number, number, number]} */
-  const out = [x / (2 * he.x), y / (2 * he.y), z / (2 * he.z)];
-  return out;
-}
+export { ANGLE_FAMILIES };
 
 /** @type {Strategy} */
 export const axisThrust = {
@@ -68,8 +44,7 @@ export const axisThrust = {
 
     // --- the axis ------------------------------------------------------
     const ra = R('angle');
-    const [lo, hi] = /** @type {readonly [number, number]} */ (pickWeighted(ra, /** @type {any} */ (ANGLE_FAMILIES)) || [38, 46]);
-    const theta = rad(between(ra, lo, hi)) * (ra() < 0.5 ? -1 : 1);
+    const theta = thrustAngle(ra);
     const axis = { x: Math.cos(theta), y: Math.sin(theta) };
     const normal = { x: -axis.y, y: axis.x };
 
@@ -88,7 +63,7 @@ export const axisThrust = {
     // --- anchor: the primary mass near the centre -------------------------
     const rn = R('anchor');
     const anchorType = pickWeighted(rn, /** @type {Array<[string, number]>} */ ([
-      [T.circle, 0.45], [T.block, 0.25], [T.cube, 0.15], [T.sphere, 0.08], [T.triangle, 0.07]
+      [T.circle, 0.45], [T.block, 0.25], [T.cube, 0.15], [T.sphere, 0.08], [T.triangle, 0.07], [T.segment, 0.12]
     ]).filter(([t]) => has(t)));
     const ax = (rn() - 0.5) * 0.3 * frame.halfW;
     const ay = (rn() - 0.5) * 0.3 * frame.halfH;
@@ -122,10 +97,15 @@ export const axisThrust = {
         scale = scaleFor(ctx, T.block, e, f, f * between(rn, 0.7, 1.0));
         orientation = blockOrientation(basis, theta);
         anchor.r = e * 0.5;
+      } else if (anchorType === T.segment) { // a large flat segment: its chord runs along the axis
+        const chord = H * between(rn, 0.55, 0.95) * k;
+        scale = scaleFor(ctx, T.segment, chord, chord * between(rn, 0.28, 0.5), chord * 0.08);
+        orientation = flatOrientation(basis, ctx.billboard, theta + (rn() < 0.5 ? 0 : Math.PI));
+        anchor.r = chord * 0.4;
       } else { // triangle: a wedge whose long edge follows the axis
         const e = H * between(rn, 0.30, 0.46) * k;
         scale = scaleFor(ctx, T.triangle, e, e * between(rn, 0.5, 0.9), e * 0.2);
-        orientation = flatOrientation(ctx.billboard, theta + (rn() < 0.5 ? 0 : Math.PI));
+        orientation = flatOrientation(basis, ctx.billboard, theta + (rn() < 0.5 ? 0 : Math.PI));
         anchor.r = e * 0.4;
       }
       const he = /** @type {import('../../types.js').ShapeDef} */ (ctx.shapes.get(anchorType)).localHalfExtents;
@@ -191,7 +171,7 @@ export const axisThrust = {
 
     // --- accents: small, in the one accent hue, in front --------------------
     const accentTypes = /** @type {Array<[string, number]>} */ ([
-      [T.triangle, 0.35], [T.plane, 0.25], [T.cube, 0.2], [T.circle, 0.2]
+      [T.triangle, 0.35], [T.plane, 0.25], [T.cube, 0.2], [T.circle, 0.2], [T.segment, 0.15], [T.crescent, 0.15]
     ]).filter(([t]) => has(t));
     if (accentTypes.length) {
       const rc0 = R('accent-count');
@@ -212,8 +192,10 @@ export const axisThrust = {
         let scale;
         let orientation;
         if (type === T.circle) { scale = scaleFor(ctx, type, s, s, 1); scale[2] = 1; orientation = new THREE.Quaternion(); }
-        else if (type === T.triangle) { scale = scaleFor(ctx, type, s * 1.6, s, s * 0.25); orientation = flatOrientation(ctx.billboard, turn + (r() < 0.5 ? 0 : Math.PI)); }
-        else if (type === T.plane) { scale = scaleFor(ctx, type, s * 1.8, s * 0.7, H * 0.012); orientation = flatOrientation(ctx.billboard, turn); }
+        else if (type === T.triangle) { scale = scaleFor(ctx, type, s * 1.6, s, s * 0.25); orientation = flatOrientation(basis, ctx.billboard, turn + (r() < 0.5 ? 0 : Math.PI)); }
+        else if (type === T.plane) { scale = scaleFor(ctx, type, s * 1.8, s * 0.7, H * 0.012); orientation = flatOrientation(basis, ctx.billboard, turn); }
+        else if (type === T.segment) { scale = scaleFor(ctx, type, s * 1.8, s * 0.7, s * 0.2); orientation = flatOrientation(basis, ctx.billboard, turn + (r() < 0.5 ? 0 : Math.PI)); }
+        else if (type === T.crescent) { scale = scaleFor(ctx, type, s * 1.2, s * 1.5, s * 0.2); orientation = flatOrientation(basis, ctx.billboard, turn + (r() < 0.5 ? 0 : Math.PI)); }
         else { scale = scaleFor(ctx, type, s, s, s); orientation = blockOrientation(basis, theta); }
         items.push({ type, role: 'accent', x, y, depth: between(r, 2.1, 3.2) + 0.2 * i, orientation, scale, hex: accentOrInk });
       }
@@ -247,6 +229,47 @@ export const axisThrust = {
         });
       }
     }
+    // --- outlines: thin open forms that cross the masses ---------------------
+    // A frame (long side along the axis, mostly) or a partial ring around the
+    // anchor, drawn in the accent hue or ink, or in a light neutral when they
+    // would vanish against a dark anchor (the white frames over the black disc
+    // of the references). They do not collide: they cross other forms on purpose.
+    [T.frame, T.ring].filter(has).forEach((type, oi) => {
+      const r = R('outline', oi);
+      if (r() >= 0.75) return; // not every scene has one
+      const k = sizeMult(ctx, type, r);
+      const sp = spreadOf(ctx, type);
+      const he = /** @type {import('../../types.js').ShapeDef} */ (ctx.shapes.get(type)).localHalfExtents;
+      const wantAccent = r() < 0.5;
+      const hex = wantAccent && accentHue && anchorHex !== accentHue
+        ? accentHue
+        : (anchorIsDark ? light[light.length - 1] : ctx.ink);
+      const thickness = H * 0.01;
+      const depth = r() < 0.75 ? between(r, 3.3, 4.5) : -between(r, 2.0, 3.0);
+      if (type === T.ring) {
+        const d = H * between(r, 0.7, 1.25) * k;
+        items.push({
+          type, role: 'detail', depth, hex,
+          x: anchor.x + (r() - 0.5) * 0.35 * frame.halfW * sp,
+          y: anchor.y + (r() - 0.5) * 0.35 * frame.halfH * sp,
+          orientation: flatOrientation(basis, ctx.billboard, between(r, 0, 2 * Math.PI)),
+          scale: scaleFor(ctx, type, d, d, thickness)
+        });
+      } else {
+        const across = r() < 0.2;
+        const ang = theta + (across ? Math.PI / 2 : rad(between(r, -6, 6)));
+        const len = 2 * frame.halfW * between(r, 0.4, 0.8) * k;
+        const off = (r() < 0.5 ? -1 : 1) * between(r, 0.0, 0.5) * frame.halfH * sp;
+        const along = (r() - 0.5) * 0.3 * len * sp;
+        items.push({
+          type, role: 'detail', depth, hex,
+          x: anchor.x + axis.x * along + normal.x * off,
+          y: anchor.y + axis.y * along + normal.y * off,
+          orientation: flatOrientation(basis, ctx.billboard, ang),
+          scale: scaleFor(ctx, type, len, len * he.y / he.x, thickness) // uniform: the frame keeps its proportions
+        });
+      }
+    });
     return items;
   }
 };

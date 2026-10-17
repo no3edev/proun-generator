@@ -61,12 +61,13 @@ describe('orientations', () => {
     }
   });
 
-  it('flatOrientation() keeps a form facing the camera and turns it in the picture plane', () => {
-    const q = flatOrientation(billboard, 0.8);
-    const n = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
-    expect(n.distanceTo(basis.depth)).toBeLessThan(1e-9);
-    const x = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
-    expect(modPi(projAngle(x))).toBeCloseTo(modPi(0.8 + projAngle(new THREE.Vector3(1, 0, 0).applyQuaternion(billboard))), 9);
+  it('flatOrientation() keeps a form facing the camera and points its x axis at the angle, exactly', () => {
+    for (const a of [-1.2, 0, 0.8, 2.5]) {
+      const q = flatOrientation(basis, billboard, a);
+      expect(new THREE.Vector3(0, 0, 1).applyQuaternion(q).distanceTo(basis.depth)).toBeLessThan(1e-9);
+      const x = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+      expect(modPi(projAngle(x)) - modPi(a)).toBeCloseTo(0, 9);
+    }
   });
 
   it('blockOrientation() brings the nearest projected edge onto the angle', () => {

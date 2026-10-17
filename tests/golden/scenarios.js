@@ -36,8 +36,50 @@ export const SCENARIOS = [
   { name: 'beams-legacy', palette: 'Proun — classic', seeds: [3, 19],
     build: (seed) => makeConfig(seed, { beam: 3, 'cube-fixed': 1, circle: 1 }) },
   { name: 'axis-thrust-beams', palette: 'Proun — classic', seeds: [2, 5, 8, 11],
-    build: (seed) => axis(makeConfig(seed, { ...each(1, { beam: 1 }), 'cube-variable': 0, plane: 0 })) }
+    build: (seed) => axis(makeConfig(seed, { ...each(1, { beam: 1 }), 'cube-variable': 0, plane: 0 })) },
+
+  // --- the segment and crescent (Stage 2.2): off by default, so none of the scenes above include them ---
+  { name: 'flat-forms-legacy', palette: 'Proun — classic', seeds: [4, 15],
+    build: (seed) => makeConfig(seed, { segment: 2, crescent: 2, 'cube-fixed': 1 }) },
+  { name: 'axis-thrust-flat-forms', palette: 'Red Wedge — white ground', seeds: [3, 6, 9, 14, 20],
+    build: (seed) => axis(makeConfig(seed, each(1, { segment: 1, crescent: 1 }))) },
+
+  // --- the outline frame and the partial ring (Stage 2.2): off by default, so none of the scenes above include them ---
+  { name: 'outlines-legacy', palette: 'Proun — classic', seeds: [5, 18],
+    build: (seed) => makeConfig(seed, { frame: 2, ring: 2, 'cube-fixed': 1, circle: 1 }) },
+  { name: 'axis-thrust-outlines', palette: 'Proun — classic', seeds: [3, 6, 9, 14, 21],
+    build: (seed) => axis(makeConfig(seed, each(1, { frame: 1, ring: 1, segment: 1 }))) },
+
+  // --- the Disc and beams strategy (Stage 2.3) ---
+  { name: 'disc-beams', palette: 'Proun — classic', seeds: [1, 2, 3, 5, 8, 13],
+    build: (seed) => disc(makeConfig(seed, each(1))) },
+  { name: 'disc-beams-portrait', palette: 'Red Wedge — white ground', seeds: [4, 9],
+    build: (seed) => disc(makeConfig(seed, each(1)), 'portrait') },
+  { name: 'disc-beams-all-shapes', palette: 'Proun — cool grey', seeds: [3, 6, 11],
+    build: (seed) => disc(makeConfig(seed, each(1, { rod: 1, beam: 1, segment: 1, crescent: 1, frame: 1, ring: 1 })), 'square') },
+  { name: 'disc-beams-few-types', palette: 'Kestner Portfolio — flat primary', seeds: [7],
+    build: (seed) => disc(makeConfig(seed, { circle: 1, 'cube-variable': 1 })) },
+
+  // --- the Central cluster strategy (Stage 2.4) ---
+  { name: 'central-cluster', palette: 'Proun — classic', seeds: [1, 2, 3, 5, 8, 13],
+    build: (seed) => cluster(makeConfig(seed, each(1))) },
+  { name: 'central-cluster-portrait', palette: 'Red Wedge — white ground', seeds: [4, 9],
+    build: (seed) => cluster(makeConfig(seed, each(1)), 'portrait') },
+  { name: 'central-cluster-all-shapes', palette: 'Proun — cool grey', seeds: [3, 6, 11],
+    build: (seed) => cluster(makeConfig(seed, each(1, { rod: 1, beam: 1, segment: 1, crescent: 1, frame: 1, ring: 1 })), 'square') },
+  { name: 'central-cluster-few-types', palette: 'Kestner Portfolio — flat primary', seeds: [7],
+    build: (seed) => cluster(makeConfig(seed, { 'cube-variable': 1, circle: 1 })) }
 ];
+
+/** the same config under the Central cluster strategy */
+function cluster(config, orientation = 'landscape') {
+  return { ...config, composition: { strategy: 'central-cluster' }, orientation };
+}
+
+/** the same config under the Disc and beams strategy */
+function disc(config, orientation = 'landscape') {
+  return { ...config, composition: { strategy: 'disc-beams' }, orientation };
+}
 
 /** the same config under the Axis thrust strategy */
 function axis(config, orientation = 'landscape') {

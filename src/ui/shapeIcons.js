@@ -12,8 +12,16 @@ const ICONS = {
   circle: `<svg viewBox="0 0 24 24" ${S}><circle cx="12" cy="12" r="8"/></svg>`,
   sphere: `<svg viewBox="0 0 24 24" ${S}><circle cx="12" cy="12" r="8"/><ellipse cx="12" cy="12" rx="8" ry="3" /><path d="M12 4v16"/></svg>`,
   triangle: `<svg viewBox="0 0 24 24" ${S}><path d="M5 19V5l14 14Z"/></svg>`,
-  // beam: a long bar in oblique view, with its end face
-  beam: `<svg viewBox="0 0 24 24" ${S}><path d="M3.5 17.5 15.5 5.5l3 3-12 12Z"/><path d="M15.5 5.5l2.5-2 3 3-2.5 2" /><path d="M3.5 17.5l-1 3 3-1"/></svg>`,
+  // beam: a long rectangular bar seen obliquely: front, top and end faces
+  beam: `<svg viewBox="0 0 24 24" ${S}><path d="M2.5 11.5h15.5v5H2.5Z"/><path d="M2.5 11.5l3-3h15.5l-3 3M21 8.5v5l-3 3"/></svg>`,
+  // segment: an arc over its chord
+  segment: `<svg viewBox="0 0 24 24" ${S}><path d="M3 17.5h18C21 11 17 6.5 12 6.5S3 11 3 17.5Z" fill="currentColor" fill-opacity=".18"/></svg>`,
+  // crescent: a disc with a bite taken out, horns to the right
+  crescent: `<svg viewBox="0 0 24 24" ${S}><path d="M15.5 4.6A8.2 8.2 0 1 0 15.5 19.4 6.6 6.6 0 0 1 15.5 4.6Z" fill="currentColor" fill-opacity=".18"/></svg>`,
+  // frame: an open rectangle
+  frame: `<svg viewBox="0 0 24 24" ${S}><rect x="3" y="7" width="18" height="10"/><rect x="5.2" y="9.2" width="13.6" height="5.6" opacity=".45"/></svg>`,
+  // ring: a partial ring, opening toward the upper right
+  ring: `<svg viewBox="0 0 24 24" ${S}><path d="M20 12a8 8 0 1 1-8-8"/></svg>`,
   rod: `<svg viewBox="0 0 24 24" ${S}><path d="M4.5 19.5 19.5 4.5" stroke-width="2.6" stroke-linecap="square"/></svg>`,
   plane: `<svg viewBox="0 0 24 24" ${S}><path d="M3 15.5 8.5 7H21l-5.5 8.5Z" fill="currentColor" fill-opacity=".18"/></svg>`
 };

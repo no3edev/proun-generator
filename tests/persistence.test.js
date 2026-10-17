@@ -5,6 +5,7 @@ import { PresetStore } from '../src/presets/PresetStore.js';
 import { loadSession, saveSession } from '../src/config/session.js';
 import { createHistory } from '../src/config/History.js';
 import { SHAPE_DEFAULTS } from '../src/config/defaults.js';
+import { STRATEGY_NAMES } from '../src/generator/strategies/index.js';
 
 // The composition strategy has to survive every way a scene is stored or
 // handed on: presets, share links, the session, history. (Nothing tested these
@@ -164,5 +165,32 @@ describe('shape types added after a preset or link was made (the beam)', () => {
     const r = restoreConfig(viewer, { storage: new MemoryStorage(), hash: old });
     expect(r.source).toBe('link');
     expect(viewer.get().shapes.rod.count).toBe(0);
+  });
+});
+
+describe('every registered composition strategy', () => {
+  // the real registry (not the fake one above): a new strategy must survive links, presets and history without more wiring
+  it.each(STRATEGY_NAMES)('%s: survives a share link, a preset, and back/forward', (name) => {
+    const real = () => ({ ...ctx(), strategyNames: STRATEGY_NAMES });
+    const c = createSceneConfig(real());
+    c.update({ seed: 31, composition: { strategy: name } });
+    expect(c.get().composition.strategy).toBe(name);
+
+    const viaLink = createSceneConfig(real());
+    viaLink.update(decodeShare(new URL(buildShareUrl(c.get(), 'http://x.test/')).hash));
+    expect(viaLink.get().composition.strategy).toBe(name);
+
+    globalThis.localStorage = new MemoryStorage();
+    const rec = PresetStore.save('p', c.toJSON());
+    const viaPreset = createSceneConfig(real());
+    viaPreset.replace(PresetStore.get(rec.id));
+    expect(viaPreset.get().composition.strategy).toBe(name);
+
+    const h = createHistory(c);
+    h.start();
+    c.update({ composition: { strategy: 'legacy' } });
+    expect(c.get().composition.strategy).toBe('legacy');
+    h.back();
+    expect(c.get().composition.strategy).toBe(name);
   });
 });

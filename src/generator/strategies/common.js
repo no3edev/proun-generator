@@ -75,13 +75,19 @@ export function barOrientation(direction, roll) {
 }
 
 /**
- * Orientation of a flat form (facing the camera) turned by `angle` in the
- * picture plane.
+ * Orientation of a flat form (its local z facing the camera) with its local x
+ * axis pointing at `angle` on screen (radians, counter-clockwise from
+ * screen-right). The camera-facing orientation alone does NOT put local x
+ * along screen-right (it is only the shortest turn of z onto the view axis),
+ * so the turn is measured from where x actually lands.
+ * @param {ReturnType<typeof screenBasis>} basis
  * @param {THREE.Quaternion} billboard the camera-facing orientation
  * @param {number} angle
  */
-export function flatOrientation(billboard, angle) {
-  const spin = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), angle);
+export function flatOrientation(basis, billboard, angle) {
+  const x = new THREE.Vector3(1, 0, 0).applyQuaternion(billboard);
+  const base = Math.atan2(x.dot(basis.up), x.dot(basis.right));
+  const spin = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), angle - base);
   return billboard.clone().multiply(spin);
 }
 

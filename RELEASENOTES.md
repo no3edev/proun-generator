@@ -1,3 +1,106 @@
+## v0.8.0 — Stage 2.4: the Central cluster strategy; the selector moves to the main panel (unreleased)
+
+Stage 2 (shape families and composition strategies) is complete. Legacy, Axis thrust and Disc and beams are unchanged: every earlier
+golden scene is byte-identical (71 reference layouts in all).
+
+### Added
+
+- **Central cluster** (`src/generator/strategies/centralCluster.js`): a main block with a plate behind it, a slab beside it and a
+  tall upright bar, a small second cluster at the bottom edge, a hairline with ticks and a dot at the edges, one tiny accent, and
+  (with frames enabled) a 45 degree diamond outline. All solids world-aligned with one shared orientation (one axonometric view); the
+  plate and bar are kept inside the frame; one saturated accent hue. Golden scenes and `tests/centralCluster.test.js`.
+- **The Composition control is now in the Scene tab**, beside Orientation and Palette (`src/ui/CompositionControl.js`, replacing the
+  experimental accordion on the Shapes tab), with a one-line hint; the count hint on the Shapes tab is unchanged.
+
+### Fixed
+
+- **My 2.1 stylesheet addition overrode the Lab panel's hint spacing.** It re-declared `.lab-hint`, which the Lab already uses;
+  the new control now has its own `.field-hint` class and the Lab's original rule applies again.
+
+### Known limits
+
+- The depth solver still spreads shapes through a wide depth range under every strategy (Stage 3), so in-front/behind order is not
+  guaranteed; cluster members overlap on screen by design, so how they stack is the solver's call until then.
+- Shading is the legacy per-face tones (Stage 4). The cluster is where it shows most: boxes read flatter than the references' three
+  clearly separated faces.
+
+## v0.7.0 — Stage 2.3: the Disc and beams strategy (unreleased)
+
+The second composition strategy. Legacy and Axis thrust are unchanged: every earlier golden scene is byte-identical (59 reference
+layouts in all), and the shared helpers extracted from Axis thrust did not change its output.
+
+### Added
+
+- **Disc and beams** (`src/generator/strategies/discBeams.js`), selectable in the Lab control: a large flat disc as the anchor field,
+  beams across its rim on one main angle (a primary and usually a parallel partner), one or two crossing beams at 40-90 degrees,
+  small accents just outside the disc, hairlines, and when enabled a ring concentric with the disc and a frame across it. One
+  saturated accent hue; beams and outlines never take the disc's own colour. The disc is kept at the back and the beams in front
+  with a clear depth gap, leaving room for a shadow plane (Stage 4).
+- `strategies/shared.js`: the helpers both strategies use (shape-type names, size/spread, extents to scale, thrust angle).
+- Golden scenes for the strategy (landscape, portrait, every shape enabled, few types); tests in `tests/discBeams.test.js`, and a
+  persistence test that runs every registered strategy through share links, presets and history, so a new strategy needs no more wiring.
+
+### Known limits
+
+- Under both strategies the depth solver still spreads shapes through a wide depth range (Stage 3), so intended in-front/behind
+  order is not guaranteed.
+- The Central cluster strategy (step 2.4) is next; the selector then moves to the main panel.
+
+## v0.6.3 — Stage 2.2 (B2): outline frame and partial ring (unreleased)
+
+Both shapes start at count 0, so no existing scene changes: every earlier golden scene (legacy, beams, flat forms, Axis thrust)
+is byte-identical.
+
+### Added
+
+- **Frame** (`src/shapes/frame.js`): an extruded open rectangle with a real hole (2.4:1, uniform scale so the line weight stays in
+  proportion).
+- **Ring** (`src/shapes/ring.js`): a 270 degree partial ring whose origin is the circle's centre.
+- Both are `collides: false` (outlines cross other forms on purpose, like the rod), export their outline and geometry builders, and
+  have tab glyphs. Axis thrust places them when enabled (see the README); a very light neutral is used where an outline would
+  vanish against a dark anchor.
+- Golden reference scenes for both (47 in all); tests in `tests/frameRing.test.js`.
+
+### Fixed
+
+- The beam's tab glyph now reads as a long bar (front, top and end faces) rather than a pencil.
+
+### Known limits
+
+- Concentric ring series and short arcs are not shapes yet (the ring is one 270 degree partial ring; rotate it to place the
+  opening). Frames are closed rectangles, not the open parallelograms of some references.
+- The outline shapes have the legacy two-tone shading (Stage 4).
+- Stage 2.2 (the shape families) is complete; the Disc and beams strategy is step 2.3.
+
+## v0.6.2 — Stage 2.2 (B1): segment and crescent (unreleased)
+
+The segment and crescent start at count 0, so no existing scene changes: every legacy golden scene (and the beam scenes) is
+byte-identical. Axis thrust scenes that contain triangles or planks do change, because of a fix below.
+
+### Added
+
+- **Segment** (`src/shapes/segment.js`): a flat circular segment (arc over chord, acute tips), from shallow to nearly a half disc.
+- **Crescent** (`src/shapes/crescent.js`): a flat two-arc moon with sharp horns.
+- Both export their outline and geometry builders; tests compare their areas with the formulas, check the tips and concavity, and
+  check that `localHalfExtents` (the collision proxy) matches the geometry actually built.
+- Axis thrust uses them when enabled: a segment as the large flat form (chord along the axis), segments and crescents as accents.
+- Tab glyphs for the beam, segment and crescent; golden reference scenes for both shapes (40 in all).
+
+### Fixed
+
+- **Flat forms in Axis thrust were turned by a fixed offset from the axis.** `flatOrientation` rotated a camera-facing form by the
+  requested angle, but the camera-facing orientation does not put its x axis along screen-right, so triangles and planks (and the
+  circle's neighbours, through collision) sat rotated by the unaccounted offset instead of following the axis. The helper now takes
+  the screen basis and puts the form's x axis exactly at the requested angle. This changes the Axis thrust scenes that contain
+  triangles or planks (golden layouts regenerated: only triangle, plane and, through resolution, circle entries differ). Legacy is
+  untouched.
+- The beam's tab glyph read as a pencil.
+
+### Known limits (next step, 2.2 B2)
+
+- Outline frames and rings (or partial rings) are still to come.
+- Flat forms use the legacy two-tone shading (caps 1.0, sides 0.7); flat shapes' tonal treatment is Stage 4.
+
 ## v0.6.1 — Stage 2.2 (A): the Beam shape (unreleased)
 
 No existing scene changes: the beam starts at count 0 (like the rod), the 27 earlier golden layouts are byte-identical, and the

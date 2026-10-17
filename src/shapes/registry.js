@@ -6,6 +6,10 @@ import triangle from './triangle.js';
 import plane from './plane.js';
 import rod from './rod.js';
 import beam from './beam.js';
+import segment from './segment.js';
+import crescent from './crescent.js';
+import frame from './frame.js';
+import ring from './ring.js';
 
 // The single place every shape must be registered. Add a new shape by
 // creating a module with the same contract:
@@ -29,7 +33,7 @@ import beam from './beam.js';
 // and the UI panel all iterate this list generically — nothing else needs
 // edits (optionally add a glyph in ui/shapeIcons.js).
 /** @type {import('../types.js').ShapeDef[]} */
-export const shapeRegistry = [cubeFixed, cubeVariable, circle, sphere, triangle, plane, rod, beam];
+export const shapeRegistry = [cubeFixed, cubeVariable, circle, sphere, triangle, plane, rod, beam, segment, crescent, frame, ring];
 
 export function getShape(type) {
   return shapeRegistry.find((s) => s.type === type);

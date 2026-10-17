@@ -34,11 +34,17 @@ export function makeConfig(seed, counts, { shape = {}, perType = {} } = {}) {
 }
 
 /**
- * `k` of every shape type except the two that start out off in the app (they
- * count 0 unless asked for: the rod, and the beam added in Stage 2.2).
+ * `k` of every shape type, except those that start out off in the app
+ * (default count 0: the rod, the beam, the segment, the crescent), which stay
+ * 0 unless named in `on`, e.g. each(1, { rod: 2, beam: 1 }).
+ * @param {number} k
+ * @param {Record<string, number>} [on]
  */
-export function each(k, { rod = 0, beam = 0 } = {}) {
-  return Object.fromEntries(shapeRegistry.map((s) => [s.type, s.type === 'rod' ? rod : s.type === 'beam' ? beam : k]));
+export function each(k, on = {}) {
+  return Object.fromEntries(shapeRegistry.map((s) => [
+    s.type,
+    on[s.type] !== undefined ? on[s.type] : (s.defaults && s.defaults.count === 0 ? 0 : k)
+  ]));
 }
 
 export function layoutOf(config, paletteName = DEFAULT_PALETTE) {

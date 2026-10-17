@@ -434,9 +434,9 @@ input[type="range"]::-moz-range-thumb { width: 8px; height: 8px; background: var
 }
 .lab-actions button { padding-left: 4px; padding-right: 4px; letter-spacing: 0.1em; }
 
-/* composition strategy (ui/CompositionLab.js): counts are the strategy's, so say so */
-.lab-hint {
-  margin: 10px 0 0;
+/* composition strategy (ui/CompositionControl.js): counts are the strategy's, so say so */
+.field-hint {
+  margin: 6px 0 0;
   font-size: 10px;
   line-height: 1.45;
   color: var(--panel-dim);

@@ -35,6 +35,12 @@ const SCENARIOS = [
   ['[axis-thrust] + rods', each(1, { rod: 1 }), [1, 1], 'axis-thrust'],
   ['[axis-thrust] size 2-3', each(1), [2, 3], 'axis-thrust'],
   ['[axis-thrust] beams (no box/plank)', { ...each(1, { beam: 1 }), 'cube-variable': 0, plane: 0 }, [1, 1], 'axis-thrust'],
+  ['[axis-thrust] flat forms + beams', each(1, { beam: 1, segment: 1, crescent: 1 }), [1, 1], 'axis-thrust'],
+  ['[axis-thrust] everything enabled', each(1, { rod: 1, beam: 1, segment: 1, crescent: 1, frame: 1, ring: 1 }), [1, 1], 'axis-thrust'],
+  ['[disc-beams] defaults', each(1), [1, 1], 'disc-beams'],
+  ['[disc-beams] everything enabled', each(1, { rod: 1, beam: 1, segment: 1, crescent: 1, frame: 1, ring: 1 }), [1, 1], 'disc-beams'],
+  ['[central-cluster] defaults', each(1), [1, 1], 'central-cluster'],
+  ['[central-cluster] everything enabled', each(1, { rod: 1, beam: 1, segment: 1, crescent: 1, frame: 1, ring: 1 }), [1, 1], 'central-cluster'],
   ['legacy: 3 beams + cube + disc', { beam: 3, 'cube-fixed': 1, circle: 1 }, [1, 1]]
 ];
 const dist = cameraPosition.length();

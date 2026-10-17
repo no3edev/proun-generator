@@ -128,7 +128,7 @@ src/
     └── panel.css           dark editorial panel styling
 tests/                     Vitest unit tests (see "Tests" below)
 src/generator/strategies/  composition strategies (index.js registry, run.js runner, common.js, axisThrust.js)
-src/ui/CompositionLab.js   the (experimental) strategy selector, on the Shapes tab
+src/ui/CompositionControl.js the composition-strategy selector, on the Scene tab
 tests/helpers/scene.js     fixtures: the real registry/palettes/camera axis, config builders
 tests/golden/              fixed-seed reference layouts (layouts.json) + the scenarios that make them
 tools/verify/              headless-browser verification harness (not part of the app)
@@ -237,7 +237,7 @@ the autosaved session, share links (an optional `l` field) and history.
 The original generator places every shape independently (it is called **legacy**, and stays the default, byte-for-byte
 unchanged: every existing seed, preset and link gives the layout it always did). A **composition strategy** instead
 composes the whole scene around a structure, in screen space, and lifts the result into the scene. Selected with
-`composition.strategy` in the config (schema v3; absent = legacy), from the Lab control on the Shapes tab.
+`composition.strategy` in the config (schema v3; absent = legacy), from the Composition control on the Scene tab.
 
 - **The strategy owns the counts.** A type's `count` only says whether the type may be used (0 = excluded); how many of each
   appear, and where, is the strategy's. `visible` is still only a display toggle. A *locked* type is replayed verbatim and
@@ -256,8 +256,29 @@ composes the whole scene around a structure, in screen space, and lifts the resu
 works (about 12-25, 40 and 55-60 degrees, rising or falling). One primary mass sits near the centre (a disc, block, cube, sphere
 or wedge); 2-3 long beams run along the axis across it and past the frame, at different depths; 2-3 small accents in the one
 accent hue (smaller than the anchor by construction); 1-2 hairlines. It builds from whichever shapes are enabled, and uses the
-Beam shape for its bars when that is enabled; the remaining new shape families (segments, frames, rings) arrive in the next step. Shading is still the legacy per-face tones, so
+Beam shape for its bars when that is enabled, a Segment as its large flat form, and Segments and Crescents as accents. Frames and rings (outline details that cross the masses) when those are enabled. Shading is still the legacy per-face tones, so
 volumes read flatter than in the references (a tonal system is a later stage).
+
+**Disc and beams** (the second strategy): a large flat disc is the anchor field (0.5-0.78 of the frame's height, a little off
+centre and free to bleed off the frame; the circle shape when it is enabled, else a segment, sphere or block). Beams cross its
+*rim*, not its middle: **one main angle** (the same angle families as Axis thrust), a primary beam and usually a parallel partner
+beside it, then **one or two beams crossing them** at 40-90 degrees over the rim. One or two small accents (at most a fifth of the
+disc) just outside it, one or two hairlines along the main angle, and, when enabled, a **ring concentric with the disc**
+(1.12-1.45 times its size) and a frame across it. One saturated accent hue as always; the beams are never the disc's own colour.
+The disc stays at the back and the beams in front of it with a clear depth gap, leaving room for a graphic shadow plane between
+them (a later stage; nothing is cast yet).
+
+**Central cluster** (the third strategy): a calm, upright composition, the white-ground cluster of the references. One tight
+cluster near the middle (slightly above it): a main block, a large flat **plate behind** it (kept inside the frame), a low
+**slab beside** it and a **tall bar** on the other side, standing upright and clearly taller than the block. A small second cluster
+of two boxes against the bottom edge, a vertical hairline with two ticks and a dot at the edges, one tiny accent against the cluster
+and, when frames are enabled, a **diamond outline** around the cluster (a frame at 45 degrees). All the solids are **world-aligned
+with one shared orientation**, so the whole cluster is seen in one axonometric view (three faces each); through the fixed camera a
+world-vertical edge is exactly vertical on screen, so the bar stands upright without turning, and `snapRotation` has nothing to
+snap. The boxes' bounding boxes cover well under half the frame (tested: under 55% in every scene, under 40% on average).
+
+The strategies share `strategies/shared.js` (the shape-type names, size and spread, the world-extents to scale conversion, and
+the thrust angle, which the two diagonal strategies use) and `strategies/common.js`.
 
 Diagnostics: `npm run diagnose` includes the strategy scenes. History entries (back/forward) and share links carry the
 strategy; a link or preset that does not mention one is legacy.
@@ -287,6 +308,38 @@ the long faces spread more than a plain box (about 1.8:1 against 1.3:1), so the 
 count 0, so nothing existing changes; add some with the stepper on its tab. Under **Axis thrust**, an enabled beam makes the
 scene's bars (chunkier than the stand-in boxes used otherwise, 6-40 times as long as thick), and a very thin beam stands in for
 the hairlines when no rod, box or plank is enabled.
+
+### Segments and crescents
+
+Two flat, extruded forms (like the triangle: thin in z, turned in the picture plane by their rotation), both starting at count 0:
+
+- **Segment** (`shapes/segment.js`): a circular segment, an arc over its chord. Local x is the chord, the arc bulges toward +y.
+  It is a true circular segment, not a half-ellipse, so the arc leaves the chord at an acute angle (about 62 degrees at the
+  base shape), the sharp-tipped cap of the large forms in the reference works. `randomScale` runs it from shallow to nearly a
+  half disc.
+- **Crescent** (`shapes/crescent.js`): a disc less a smaller, offset disc, with two sharp horns pointing toward +x.
+
+Each module exports its outline and geometry builders (`segmentShape()`, `crescentGeometry()`, ...) so tests can check the
+collision proxy (`localHalfExtents`) against the real geometry and the areas against the formulas. Under **Axis thrust**, an
+enabled segment can be the large flat anchor (its chord along the axis) or an accent, and the crescent is an accent; neither
+appears unless enabled.
+
+### Outline frames and rings
+
+Two thin outline forms, both extruded from real geometry (not built from bars), both starting at count 0, and both with
+`collides: false` like the rod: an outline crosses other forms on purpose, and a solid collision box around a hollow frame would
+only push things apart. They pass through other shapes and do not move them in depth.
+
+- **Frame** (`shapes/frame.js`): one extruded rectangle with a real hole, a fixed 2.4:1, line weight 2.2% of its length. Local x
+  is the long side. It scales uniformly (scaling a hollow rectangle unevenly would thicken one pair of sides more), so its line
+  weight stays in proportion to its size.
+- **Ring** (`shapes/ring.js`): a 270 degree partial ring, 2.5% of its diameter wide, the opening centred on local +x. Unlike
+  the other flat forms its origin is the **circle's centre**, not the middle of its bounding box, so placing the shape places the
+  circle and turning it swings the opening about the centre; its `localHalfExtents` are the whole circle's envelope.
+
+Under **Axis thrust**, an enabled frame (long side along the axis, or across it) and ring (centred near the anchor, opening in a
+random direction) each appear in about three scenes in four, in front of or behind the masses, in the accent hue or ink, or in
+the lightest neutral when the anchor is dark (so they don't vanish against it).
 
 Shape types added after a preset or link was made: a type the record never mentions takes its own default (off for the rod and
 the beam), not the viewer's current settings, so an older preset or link restores its own composition.
@@ -610,8 +663,13 @@ UI's limits). `npm run diagnose` prints the solver's residual AABB / true-volume
 
 Strategy suites (Stage 2.1): `strategyCommon` (screen basis, lift, orientations, palette split), `axisThrust` (determinism, count ownership,
 one anchor and subordinate accents, one dominant axis from the angle families, one saturated hue on every shipped palette, locks,
-orientations, clip planes), `layoutCounts`, and `persistence` (the strategy surviving share links, presets, session and history; and types added later
-staying off). `beam` covers the shape's contract and proportions, its legacy and Axis thrust use, and the registry-wide contract.
+orientations, clip planes), `centralCluster` (world-aligned solids, an upright bar, the plate in the frame, the edge cluster, the 45 degree diamond, coverage),
+`discBeams` (the second strategy: structure, one main angle with one or two crossing beams, the beams crossing the rim, colour,
+ring concentricity), `layoutCounts`, and `persistence` (every registered strategy surviving share links, presets, session and
+history; and types added later staying off). `beam` covers the shape's contract and proportions, its legacy and Axis thrust use, and the registry-wide contract;
+`segmentCrescent` checks both outlines against the formulas (areas, tip angles, concavity), the collision proxies against the real
+geometry, and their use in Axis thrust; `frameRing` checks the frame's hole and area, the ring's opening, area and pivot, that
+both stay inside their envelopes and scale uniformly, and their use in Axis thrust.
 
 The suites **added with the visual-dynamics work**:
 

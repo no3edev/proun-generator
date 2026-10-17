@@ -1,5 +1,7 @@
 // @ts-check
 import { axisThrust } from './axisThrust.js';
+import { discBeams } from './discBeams.js';
+import { centralCluster } from './centralCluster.js';
 
 /** @typedef {import('./run.js').Strategy} Strategy */
 
@@ -15,7 +17,9 @@ export const DEFAULT_STRATEGY = 'legacy';
 
 /** @type {Record<string, Strategy>} */
 export const STRATEGIES = {
-  'axis-thrust': axisThrust
+  'axis-thrust': axisThrust,
+  'disc-beams': discBeams,
+  'central-cluster': centralCluster
 };
 
 /** every selectable strategy name, legacy first */
