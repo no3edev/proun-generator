@@ -15,6 +15,7 @@ export default {
   type: TYPE,
   label: 'Sphere',
   facesCamera: false,
+  volumeKind: 'sphere', // a ball: the diagnostics and the strategies' solver test it as one, not as its box
   localHalfExtents: { x: 0.68, y: 0.68, z: 0.68 },
 
   create(hex) {

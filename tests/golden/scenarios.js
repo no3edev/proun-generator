@@ -15,7 +15,7 @@ export const SCENARIOS = [
     build: (seed) => makeConfig(seed, each(3, { rod: 2 })) },
   { name: 'snapped', palette: 'Proun — cool grey', seeds: [5, 17],
     build: (seed) => makeConfig(seed, each(2), { shape: { snapRotation: true } }) },
-  { name: 'sizes-spread', palette: 'Kestner Portfolio — flat primary', seeds: [8, 31],
+  { name: 'sizes-spread', palette: 'Proun — cream and vermilion', seeds: [8, 31],
     build: (seed) => makeConfig(seed, each(2), { shape: { sizeMin: 0.5, sizeMax: 2, spread: 1.4 } }) },
   // large shapes: the case where the depth solver used to push shapes past the camera
   { name: 'large', palette: 'Proun — classic', seeds: [13, 77],
@@ -29,7 +29,7 @@ export const SCENARIOS = [
     build: (seed) => axis(makeConfig(seed, each(1)), 'portrait') },
   { name: 'axis-thrust-rods-snapped', palette: 'Proun — cool grey', seeds: [4, 21],
     build: (seed) => axis(makeConfig(seed, each(1, { rod: 1 }), { shape: { snapRotation: true } }), 'square') },
-  { name: 'axis-thrust-few-types', palette: 'Kestner Portfolio — flat primary', seeds: [6, 12],
+  { name: 'axis-thrust-few-types', palette: 'Proun — cream and vermilion', seeds: [6, 12],
     build: (seed) => axis(makeConfig(seed, { circle: 1, 'cube-variable': 1, triangle: 1 })) },
 
   // --- the beam shape (Stage 2.2): off by default, so the scenes above never include it ---
@@ -57,7 +57,7 @@ export const SCENARIOS = [
     build: (seed) => disc(makeConfig(seed, each(1)), 'portrait') },
   { name: 'disc-beams-all-shapes', palette: 'Proun — cool grey', seeds: [3, 6, 11],
     build: (seed) => disc(makeConfig(seed, each(1, { rod: 1, beam: 1, segment: 1, crescent: 1, frame: 1, ring: 1 })), 'square') },
-  { name: 'disc-beams-few-types', palette: 'Kestner Portfolio — flat primary', seeds: [7],
+  { name: 'disc-beams-few-types', palette: 'Proun — cream and vermilion', seeds: [7],
     build: (seed) => disc(makeConfig(seed, { circle: 1, 'cube-variable': 1 })) },
 
   // --- the Central cluster strategy (Stage 2.4) ---
@@ -67,9 +67,34 @@ export const SCENARIOS = [
     build: (seed) => cluster(makeConfig(seed, each(1)), 'portrait') },
   { name: 'central-cluster-all-shapes', palette: 'Proun — cool grey', seeds: [3, 6, 11],
     build: (seed) => cluster(makeConfig(seed, each(1, { rod: 1, beam: 1, segment: 1, crescent: 1, frame: 1, ring: 1 })), 'square') },
-  { name: 'central-cluster-few-types', palette: 'Kestner Portfolio — flat primary', seeds: [7],
-    build: (seed) => cluster(makeConfig(seed, { 'cube-variable': 1, circle: 1 })) }
+  { name: 'central-cluster-few-types', palette: 'Proun — cream and vermilion', seeds: [7],
+    build: (seed) => cluster(makeConfig(seed, { 'cube-variable': 1, circle: 1 })) },
+
+  // --- the assembly strategies: Tower, Cross, Mass (v0.13.0) ---
+  { name: 'tower', palette: 'Proun — classic', seeds: [1, 2, 3, 7, 42],
+    build: (seed) => strat('tower', makeConfig(seed, each(1))) },
+  { name: 'tower-portrait-all', palette: 'Proun — lithograph on cream', seeds: [5, 9],
+    build: (seed) => strat('tower', makeConfig(seed, each(1, { rod: 1, beam: 1, segment: 1, crescent: 1, frame: 1, ring: 1 })), 'portrait') },
+  { name: 'tower-few-types', palette: 'Proun — cream and vermilion', seeds: [7],
+    build: (seed) => strat('tower', makeConfig(seed, { 'cube-variable': 1, circle: 1 })) },
+  { name: 'cross', palette: 'Proun — cream and vermilion', seeds: [1, 2, 5, 6, 9],
+    build: (seed) => strat('cross', makeConfig(seed, each(1, { rod: 1, beam: 1, frame: 1 })), 'portrait') },
+  { name: 'cross-landscape', palette: 'Proun — classic', seeds: [3, 8],
+    build: (seed) => strat('cross', makeConfig(seed, each(1))) },
+  { name: 'cross-few-types', palette: 'Proun — grey ground', seeds: [4],
+    build: (seed) => strat('cross', makeConfig(seed, { circle: 1, 'cube-variable': 1 })) },
+  { name: 'mass', palette: 'Proun — lithograph on cream', seeds: [1, 2, 3, 5, 8],
+    build: (seed) => strat('mass', makeConfig(seed, each(1))) },
+  { name: 'mass-portrait-all', palette: 'Proun — grey ground', seeds: [4, 9],
+    build: (seed) => strat('mass', makeConfig(seed, each(1, { rod: 1, beam: 1, segment: 1, crescent: 1, frame: 1, ring: 1 })), 'portrait') },
+  { name: 'mass-few-types', palette: 'Proun — classic', seeds: [7],
+    build: (seed) => strat('mass', makeConfig(seed, { 'cube-variable': 1, circle: 1 })) }
 ];
+
+/** the same config under a named strategy */
+function strat(name, config, orientation = 'landscape') {
+  return { ...config, composition: { strategy: name }, orientation };
+}
 
 /** the same config under the Central cluster strategy */
 function cluster(config, orientation = 'landscape') {

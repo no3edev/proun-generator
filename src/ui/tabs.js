@@ -7,7 +7,7 @@
  *
  * @param {{label: string, panel: HTMLElement, icon?: HTMLElement}[]} tabs
  * @param {{startIndex?: number}} [opts]
- * @returns {{ container: HTMLElement, select(index: number): void }}
+ * @returns {{ container: HTMLElement, select(index: number): void, setHidden(index: number, hidden: boolean): void }}
  */
 export function createTabs(tabs, opts = {}) {
   const container = document.createElement('div');
@@ -44,6 +44,7 @@ export function createTabs(tabs, opts = {}) {
   });
 
   function select(index) {
+    active = index;
     buttons.forEach((b, i) => {
       b.classList.toggle('active', i === index);
       b.setAttribute('aria-selected', String(i === index));
@@ -51,9 +52,22 @@ export function createTabs(tabs, opts = {}) {
     tabs.forEach((t, i) => { t.panel.hidden = i !== index; });
   }
 
-  select(opts.startIndex ?? 0);
+  let active = opts.startIndex ?? 0;
+  select(active);
+
+  /**
+   * Hides or shows a tab's button. A hidden tab keeps its panel (and the state in it); if the active tab is hidden,
+   * the first tab still shown becomes active instead.
+   */
+  function setHidden(index, hidden) {
+    buttons[index].hidden = hidden;
+    if (hidden && index === active) {
+      const first = buttons.findIndex((b) => !b.hidden);
+      if (first >= 0) select(first);
+    }
+  }
 
   container.appendChild(nav);
   container.appendChild(panelsWrap);
-  return { container, select };
+  return { container, select, setHidden };
 }

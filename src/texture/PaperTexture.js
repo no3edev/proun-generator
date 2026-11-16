@@ -1,7 +1,7 @@
 // Layer 1 of the material system: the physical sheet. Static, and —
 // unlike the old single-pass noise generator this replaces — built
 // once and cached, since real paper grain doesn't change per palette
-// or per shape; only its *tint* does (see tintStructure below). This
+// or per shape. This
 // is a structured procedural stand-in (multi-octave blurred noise +
 // directional fiber lines) for a real scanned/photographed paper
 // texture: no image-asset pipeline exists in this project yet, so
@@ -18,10 +18,10 @@ let cached = null;
 
 /**
  * The shared, grayscale, palette-independent paper structure. Built
- * once per session and cached — every shape's material and the
- * stage-wide overlay all sample this same canvas, so the whole
- * composition reads as one physical sheet rather than independent
- * random noise per surface.
+ * once per session and cached — the legacy
+ * pigment pool (PigmentLayer.js) samples this canvas. (The stage-wide DOM overlay that
+ * used to multiply it over the whole picture was retired in v0.14.0: the ground carries the
+ * paper now.)
  *
  * @returns {HTMLCanvasElement}
  */
@@ -44,29 +44,4 @@ export function paperStructure() {
 
   cached = canvas;
   return cached;
-}
-
-/**
- * Multiply-tints a structure canvas with a palette color — used for
- * the stage-wide paper overlay (and its PNG-export twin), where the
- * paper needs to actually read as `paper` hex, not stay neutral.
- * Shape materials never call this: they stay neutral/grayscale and
- * get their color from material.color instead (see materials.js).
- *
- * @param {HTMLCanvasElement} structureCanvas
- * @param {string} hex
- * @returns {HTMLCanvasElement}
- */
-export function tintStructure(structureCanvas, hex) {
-  const size = structureCanvas.width;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = hex;
-  ctx.fillRect(0, 0, size, size);
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.drawImage(structureCanvas, 0, 0);
-  ctx.globalCompositeOperation = 'source-over';
-  return canvas;
 }

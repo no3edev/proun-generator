@@ -13,7 +13,6 @@
 <div id="app">
   <div id="stage-wrap">
     <canvas id="scene"></canvas>
-    <div id="paper-overlay"></div>
     <div id="hint">click / space — advance composition</div>
   </div>
 </div>
@@ -55,6 +54,11 @@
         <!-- populated at runtime — see ui/PresetsPanel.js -->
         <div id="presets-section"></div>
       </section>
+
+      <section class="group">
+        <!-- a read-only readout, built at runtime — see ui/DiagnosticsPanel.js -->
+        <div id="layout-diagnostics"></div>
+      </section>
     </div>
 
     <!-- SHAPES: what is in it. Saved in presets and links. -->
@@ -75,20 +79,33 @@
             <span class="accordion-chevron" id="time-chevron">+</span>
           </button>
           <div class="accordion-panel" id="time-body" hidden>
+            <div class="field">
+              <label for="timing-select">Timing</label>
+              <select id="timing-select" title="Dev: quick changes for working. Exhibition: a 1-minute transition, then 15 minutes still.">
+                <option value="dev">Dev</option>
+                <option value="exhibition">Exhibition</option>
+                <option value="custom" hidden>Custom</option>
+              </select>
+            </div>
             <div class="split">
               <div class="field">
-                <label for="duration-input">Duration <i>ms</i></label>
-                <input type="number" id="duration-input">
+                <label for="duration-input">Transition <i>s</i></label>
+                <input type="number" id="duration-input" title="How long the shapes take to move to the next composition">
               </div>
               <div class="field">
-                <label for="interval-input">Interval <i>ms</i></label>
-                <input type="number" id="interval-input">
+                <label for="hold-input">Hold <i>s</i></label>
+                <input type="number" id="hold-input" title="How long the picture rests before the next change starts (Auto)">
               </div>
             </div>
             <div class="field row">
               <input type="checkbox" id="auto-toggle">
               <label for="auto-toggle">Auto</label>
             </div>
+            <div class="field row">
+              <input type="checkbox" id="playlist-toggle">
+              <label for="playlist-toggle" title="With Auto on, each change is the next curated preset (the Library), shuffled so none repeats before all were shown, instead of a new random composition. Presets are shown at the display's orientation.">Curated sequence</label>
+            </div>
+            <button type="button" id="exhibition-btn" class="secondary" title="Hide the interface and fill the screen with the picture (F). Esc or F brings it back.">Exhibition mode <i>F</i></button>
           </div>
         </div>
       </section>
@@ -114,7 +131,12 @@
         <option value="1">1×</option>
         <option value="2">2×</option>
         <option value="4">4×</option>
+        <option value="custom">Custom size…</option>
       </select>
+    </div>
+    <div class="export-row" id="export-size-row" hidden>
+      <label for="export-size" title="The longest side of the picture in pixels, up to 16384 px and 100 megapixels. Above 8192 px or 36 megapixels it is rendered in tiles, which takes longer.">Longest side <i>px</i></label>
+      <input type="number" id="export-size" min="512" max="16384" step="100" value="8000">
     </div>
     <button id="share-btn" class="secondary" title="Copy a link to this composition">Copy link</button>
   </div>

@@ -1,6 +1,6 @@
 {
   "name": "proun-generator",
-  "version": "0.8.0",
+  "version": "0.23.0",
   "private": true,
   "type": "module",
   "description": "A generative art tool inspired by El Lissitzky's Proun series, built with Three.js.",
@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json",
     "golden:update": "node tools/golden/update.mjs",
-    "diagnose": "node tools/diagnose.mjs"
+    "diagnose": "node tools/diagnose.mjs",
+    "tone": "node tools/tone.mjs"
   },
   "devDependencies": {
     "@types/three": "^0.160.0",

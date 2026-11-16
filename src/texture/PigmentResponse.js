@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { DYNAMICS } from '../config/defaults.js';
 import { NOISE_GLSL } from './noiseGLSL.js';
+import { emptyField } from './edgeField.js';
+import { HATCH_GLSL, hatchShared } from './hatch.js';
+import { HIGHLIGHT } from './highlight.js';
 
 // COLOR CHANGE AS OVERPAINTING.
 //
@@ -52,13 +55,27 @@ const shared = {
   uFrontSoft: { value: DYNAMICS.color.soft },
   uFrontGrain: { value: DYNAMICS.color.grain },
   uTone: { value: DYNAMICS.color.tone },
+  uHiStrength: { value: HIGHLIGHT.strength },
   uPaintOn: { value: 1 },
   uPaintVis: { value: DYNAMICS.paint.visibility },
   uPaintBase: { value: DYNAMICS.paint.base },
   uStrokeScale: { value: DYNAMICS.paint.strokeScale },
   uStrokeLen: { value: DYNAMICS.paint.strokeLength },
   uGammaMid: { value: DYNAMICS.paint.followStrokes },
-  uGammaCoarse: { value: DYNAMICS.paint.followStains }
+  uGammaCoarse: { value: DYNAMICS.paint.followStains },
+  uEdgeW: { value: DYNAMICS.edge.width },
+  uEdgeThin: { value: DYNAMICS.edge.thinning },
+  uEdgePool: { value: DYNAMICS.edge.pooling },
+  uEdgeOn: { value: 1 },
+  uEnergy: { value: 0 },
+  uRespOn: { value: 1 },
+  uRespEdge: { value: DYNAMICS.response.edge },
+  uRespSoft: { value: DYNAMICS.response.softness },
+  uRespTooth: { value: DYNAMICS.response.tooth },
+  uSilOn: { value: 1 },
+  uSoftW: { value: DYNAMICS.silhouette.softness },
+  uIrrA: { value: DYNAMICS.silhouette.irregularity },
+  uEdgePaper: { value: new THREE.Color('#e9e4d8') }
 };
 
 const f = (/** @type {number} */ n) => n.toFixed(4);
@@ -68,6 +85,8 @@ varying vec3 vFrontPos;
 varying vec3 vPaintPos;
 varying vec3 vPaintDim;
 varying vec3 vPaintNrm;
+varying vec3 vPaintScale;
+varying vec3 vToCamObj;
 uniform vec3 uBBMin;
 uniform vec3 uBBMax;
 `;
@@ -80,6 +99,10 @@ vec3 pScale = vec3( length( modelMatrix[0].xyz ), length( modelMatrix[1].xyz ), 
 vPaintPos = position * pScale;
 vPaintDim = ( uBBMax - uBBMin ) * pScale;
 vPaintNrm = normal;
+vPaintScale = pScale;
+// the way to the camera (orthographic: the same everywhere) in the shape's own axes, the rotation only: for the silhouette test
+vec3 toCamW = vec3( viewMatrix[0][2], viewMatrix[1][2], viewMatrix[2][2] );
+vToCamObj = vec3( dot( modelMatrix[0].xyz, toCamW ) / pScale.x, dot( modelMatrix[1].xyz, toCamW ) / pScale.y, dot( modelMatrix[2].xyz, toCamW ) / pScale.z );
 `;
 
 const DECLARATIONS = `
@@ -87,7 +110,9 @@ varying vec3 vFrontPos;
 varying vec3 vPaintPos;
 varying vec3 vPaintDim;
 varying vec3 vPaintNrm;
+varying vec3 vPaintScale;
 uniform vec2 uPaintSeed;
+uniform vec2 uPaintSeedFrom;
 uniform vec2 uFaceSeed;
 uniform float uPaintOn;
 uniform float uPaintVis;
@@ -129,26 +154,82 @@ uniform vec2 uProj;
 uniform float uFrontSoft;
 uniform float uFrontGrain;
 uniform float uTone;
-uniform float uShade;
+uniform float uShadeFrom;
+uniform float uShadeMid;
+// the selective highlight (highlight.js): amount 0..1, the strip's direction in object space (a dot with it is world distance along
+// the direction), the edge and width of the strip along it, the tint it mixes toward
+uniform float uHiAmt;
+uniform vec3 uHiN;
+uniform vec2 uHiBand;
+uniform vec3 uHiTint;
+uniform float uHiStrength;
+// the edge character of box-like faces (edge.js): amount 0..1 per mesh, the lab's switch, band width (world units), thinning and
+// pooling strengths, the paper the thinned paint shows
+uniform float uEdgeAmt;
+uniform vec3 uBBMin;
+uniform vec3 uBBMax;
+uniform float uEdgeKind;
+uniform sampler2D uEdgeSdf;
+uniform float uEdgeR;
+uniform float uSilOn;
+// the materials' response to the event clock: Rhythm's energy (0 at rest), the lab's switch, the strength of each response, and this
+// mesh's share (1 under a strategy, 0 under the legacy generator)
+uniform float uEnergy;
+uniform float uRespOn;
+uniform float uRespEdge;
+uniform float uRespSoft;
+uniform float uRespTooth;
+uniform float uRespAmt;
+uniform float uSoftW;
+uniform float uIrrA;
+varying vec3 vToCamObj;
+uniform float uEdgeOn;
+uniform float uEdgeW;
+uniform float uEdgeThin;
+uniform float uEdgePool;
+uniform vec3 uEdgePaper;
+${HATCH_GLSL}
+// How much of an edge's coverage is left at distance d from it (stage 5.3). nb: the way the face on the other side of the edge lies,
+// in the shape's own axes; pw: the position in the face's plane. The edge is on the outline when the face beyond it looks away from
+// the camera (orthographic, the forms convex): a crease between two faces we can see keeps full coverage. The distance is eroded a
+// little by a slow and a fine noise, so the outline is irregular, and the last softW is a ramp.
+float silCover( float d, vec3 nb, vec2 pw ) {
+  if ( uSilOn < 0.5 ) return 1.0;
+  float sil = 1.0 - smoothstep( -0.12, 0.12, dot( normalize( nb / vPaintScale ), vToCamObj ) );
+  float irr = 0.65 * vnoise( pw * ${f(DYNAMICS.silhouette.slowFreq)} + uPaintSeed * 1.9 + uFaceSeed ) + 0.35 * vnoise( pw * ${f(DYNAMICS.silhouette.fineFreq)} + uPaintSeed * 2.7 + uFaceSeed );
+  float soft = uSoftW * ( 1.0 + uRespOn * uRespAmt * uRespSoft * uEnergy );
+  float a = smoothstep( 0.0, max( soft, 0.0005 ), d - uIrrA * irr );
+  return mix( 1.0, a, sil );
+}
 `;
 
 const BODY = `
 #ifdef USE_MAP
 // the grain: the old pattern, or the procedural field
 vec3 pGrain = sampledDiffuseColor.rgb;
+vec3 pGrainFrom = pGrain;
 float pDens = clamp( ( sampledDiffuseColor.g - ${f(DYNAMICS.grainMap.low)} ) / ${f(DYNAMICS.grainMap.high - DYNAMICS.grainMap.low)}, 0.0, 1.0 );
+// the face's own plane: coordinates and size in world lengths
+vec3 pAn = abs( vPaintNrm );
+vec2 pWc;
+vec2 pDm;
+if ( pAn.z >= pAn.x && pAn.z >= pAn.y ) { pWc = vPaintPos.xy; pDm = vPaintDim.xy; }
+else if ( pAn.x >= pAn.y ) { pWc = vPaintPos.yz; pDm = vPaintDim.yz; }
+else { pWc = vPaintPos.xz; pDm = vPaintDim.xz; }
 if ( uPaintOn > 0.5 ) {
-  vec3 pAn = abs( vPaintNrm );
-  vec2 pWc;
-  vec2 pDm;
-  if ( pAn.z >= pAn.x && pAn.z >= pAn.y ) { pWc = vPaintPos.xy; pDm = vPaintDim.xy; }
-  else if ( pAn.x >= pAn.y ) { pWc = vPaintPos.yz; pDm = vPaintDim.yz; }
-  else { pWc = vPaintPos.xz; pDm = vPaintDim.xz; }
   vec2 pf = paintField( pWc, pDm, uPaintSeed + uFaceSeed );
   // the sRGB-encoded variation is roughly 1/2.2 of the linear one
-  pGrain = vec3( clamp( uPaintBase + uPaintVis * 2.2 * pf.x, 0.0, 1.0 ) );
+  // the paint's tooth lifts a little with the event clock's energy (stage 5.4)
+  float pVisE = uPaintVis * ( 1.0 + uRespOn * uRespAmt * uRespTooth * uEnergy );
+  pGrain = vec3( clamp( uPaintBase + pVisE * 2.2 * pf.x, 0.0, 1.0 ) );
   pDens = pf.y;
   diffuseColor = vec4( diffuse * pGrain, opacity );
+  pGrainFrom = pGrain;
+  // a form that took another part's paint keeps the grain of the paint it had, under the colour that is still arriving
+  if ( uFront < 1.0 && ( uPaintSeedFrom.x != uPaintSeed.x || uPaintSeedFrom.y != uPaintSeed.y ) ) {
+    vec2 pfOld = paintField( pWc, pDm, uPaintSeedFrom + uFaceSeed );
+    pGrainFrom = vec3( clamp( uPaintBase + pVisE * 2.2 * pfOld.x, 0.0, 1.0 ) );
+  }
 }
 if ( uFront < 1.0 ) {
   // where, along the sweep, this fragment sits (0..1 over the form)
@@ -161,7 +242,7 @@ if ( uFront < 1.0 ) {
   // earlier layer stays frozen where it was (uFrontA) under the new one.
   // Uninterrupted, uFrom = uMid and uFrontA = 1, so this is just the old color.
   float fArrivedA = smoothstep( 0.0, 1.0, ( uFrontA * ( 1.0 + fSoft ) - fOrder ) / fSoft );
-  vec3 fBase = mix( min( uFrom * uShade, vec3( 1.0 ) ), min( uMid * uShade, vec3( 1.0 ) ), fArrivedA ) * pGrain;
+  vec3 fBase = mix( min( uFrom * uShadeFrom, vec3( 1.0 ) ), min( uMid * uShadeMid, vec3( 1.0 ) ), fArrivedA ) * pGrainFrom;
   // each patch a little lighter or darker than its own color — strongest
   // mid-change, nil at both ends — never a different hue; the earlier
   // layer's shift fades out as the new one covers it
@@ -169,6 +250,61 @@ if ( uFront < 1.0 ) {
   float fTone = 1.0 + uTone * fBump * ( 2.0 * pDens - 1.0 );
   diffuseColor.rgb = min( mix( fBase, diffuseColor.rgb, fArrived ) * fTone, vec3( 1.0 ) );
 }
+if ( uHiAmt > 0.0 ) {
+  // the light edge strip: within uHiBand.y (world units) of the form's edge along uHiN, mixed toward the tint, grain kept
+  float hiBand = smoothstep( uHiBand.x - uHiBand.y - 0.003, uHiBand.x - uHiBand.y, dot( vFrontPos, uHiN ) );
+  diffuseColor.rgb = mix( diffuseColor.rgb, min( uHiTint * pGrain, vec3( 1.0 ) ), hiBand * uHiAmt * uHiStrength );
+}
+if ( uEdgeAmt > 0.0 && uEdgeOn > 0.5 ) {
+  // the edge band widens with the event clock's energy (stage 5.4)
+  float edgeWR = uEdgeW * ( 1.0 + uRespOn * uRespAmt * uRespEdge * uEnergy );
+  float eD;
+  float eW;
+  // the coverage the silhouette leaves (stage 5.3): every edge of the face counts, so a corner is as soft as the sides
+  float sCover = 1.0;
+  if ( uEdgeKind > 0.5 ) {
+    // an extruded outline: the distance field of the outline, on the two caps; a distance in the shape's own units is a world
+    // distance times |scale * direction|
+    if ( abs( vPaintNrm.z ) > 0.9 ) {
+      vec2 eUv = ( vFrontPos.xy - uBBMin.xy ) / max( uBBMax.xy - uBBMin.xy, vec2( 0.0001 ) );
+      vec4 eF = texture2D( uEdgeSdf, eUv );
+      vec2 eDir = 2.0 * eF.gb - 1.0;
+      eD = eF.r * length( vPaintScale.xy * eDir );
+      sCover = silCover( eD, vec3( eDir, 0.0 ), pWc );   // the side wall there looks along the outline's normal
+    } else {
+      // a side wall of the extrusion keeps flat edges for the band; for the silhouette its edges are the two caps
+      eD = 1.0e4;
+      float zF = ( uBBMax.z - vFrontPos.z ) * vPaintScale.z;
+      float zB = ( vFrontPos.z - uBBMin.z ) * vPaintScale.z;
+      sCover = min( silCover( zF, vec3( 0.0, 0.0, 1.0 ), pWc ), silCover( zB, vec3( 0.0, 0.0, -1.0 ), pWc ) );
+    }
+    // never wider than a third of the shape's thinnest part (a ring's width, not its diameter)
+    eW = max( min( edgeWR, 0.3 * uEdgeR * min( vPaintScale.x, vPaintScale.y ) ), 0.0005 );
+  } else {
+    // a box centred on its origin: what is left of half the face's size
+    vec2 eIn = 0.5 * pDm - abs( pWc );
+    eD = max( min( eIn.x, eIn.y ), 0.0 );
+    // a face too narrow for the band (a thin plane's side) gets a band that fits
+    eW = max( min( edgeWR, 0.22 * min( pDm.x, pDm.y ) ), 0.0005 );
+    // each of the face's edges, and the face beyond it: the plane's two axes are these of the shape's own
+    vec3 eAx1;
+    vec3 eAx2;
+    if ( pAn.z >= pAn.x && pAn.z >= pAn.y ) { eAx1 = vec3( 1.0, 0.0, 0.0 ); eAx2 = vec3( 0.0, 1.0, 0.0 ); }
+    else if ( pAn.x >= pAn.y ) { eAx1 = vec3( 0.0, 1.0, 0.0 ); eAx2 = vec3( 0.0, 0.0, 1.0 ); }
+    else { eAx1 = vec3( 1.0, 0.0, 0.0 ); eAx2 = vec3( 0.0, 0.0, 1.0 ); }
+    sCover = min( silCover( eIn.x, eAx1 * ( pWc.x < 0.0 ? -1.0 : 1.0 ), pWc ), silCover( eIn.y, eAx2 * ( pWc.y < 0.0 ? -1.0 : 1.0 ), pWc ) );
+  }
+  float eT = 1.0 - smoothstep( 0.0, eW, eD );
+  // thinning: the paper tooth shows through at the edge where the grain lets it, so the edge is broken, not an outline
+  float eN = vnoise( pWc * ${f(DYNAMICS.edgeGrain.scale)} + uPaintSeed * 3.7 + uFaceSeed );
+  float eThin = eT * eT * ( ${f(DYNAMICS.edgeGrain.floor)} + ${f(1 - DYNAMICS.edgeGrain.floor)} * eN );
+  diffuseColor.rgb = mix( diffuseColor.rgb, uEdgePaper * pGrain, clamp( eThin * uEdgeThin * uEdgeAmt, 0.0, 1.0 ) );
+  // pooling: a ridge a little inside the band, a little darker
+  float eR = ( eD - 1.1 * eW ) / ( 0.6 * eW );
+  diffuseColor.rgb *= 1.0 - uEdgePool * uEdgeAmt * exp( -eR * eR );
+  diffuseColor.a *= mix( 1.0, sCover, uEdgeAmt );
+}
+if ( uHatchOn > 0.5 ) diffuseColor.rgb = hatchBlend( diffuseColor.rgb, pWc, uFront );
 #endif
 `;
 
@@ -253,6 +389,13 @@ export function installPigmentResponse(material, shade, geo, front, faceIndex = 
   const bbMin = { value: bb.min.clone() };
   const bbMax = { value: bb.max.clone() };
   const faceSeed = { value: new THREE.Vector2(faceIndex * 13.7, faceIndex * 5.3) };
+  // The face's tone: `shade` is the multiplier in force, and the overpaint shows the tone of the layers beneath the new colour
+  // (uShadeFrom under the colour that came before, uShadeMid under an interrupted change), so a change of tone rides the colour
+  // front. At rest all three are the same number. materials.js (setShade / shiftShade) drives them.
+  // the highlight state lives on the mesh's `front` (materials.js); a state without it (test doubles) is inert
+  const hi = front.uHiAmt ? front : { uHiAmt: { value: 0 }, uHiN: { value: new THREE.Vector3() }, uHiBand: { value: new THREE.Vector2() }, uHiTint: { value: new THREE.Color() } };
+  const tone = { shade, uShadeFrom: { value: shade }, uShadeMid: { value: shade } };
+  material.userData.tone = tone;
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uFront = front.uFront;
     shader.uniforms.uFrontA = front.uFrontA;
@@ -265,6 +408,7 @@ export function installPigmentResponse(material, shade, geo, front, faceIndex = 
     shader.uniforms.uBBMin = bbMin;
     shader.uniforms.uBBMax = bbMax;
     shader.uniforms.uPaintSeed = front.uSeed;
+    shader.uniforms.uPaintSeedFrom = front.uSeedFrom || front.uSeed; // test doubles without the old-seed state: no old grain
     shader.uniforms.uFaceSeed = faceSeed;
     shader.uniforms.uPaintOn = shared.uPaintOn;
     shader.uniforms.uPaintVis = shared.uPaintVis;
@@ -273,11 +417,42 @@ export function installPigmentResponse(material, shade, geo, front, faceIndex = 
     shader.uniforms.uStrokeLen = shared.uStrokeLen;
     shader.uniforms.uGammaMid = shared.uGammaMid;
     shader.uniforms.uGammaCoarse = shared.uGammaCoarse;
-    shader.uniforms.uShade = { value: shade };
+    shader.uniforms.uHiAmt = hi.uHiAmt;
+    shader.uniforms.uHiN = hi.uHiN;
+    shader.uniforms.uHiBand = hi.uHiBand;
+    shader.uniforms.uHiTint = hi.uHiTint;
+    shader.uniforms.uHiStrength = shared.uHiStrength;
+    shader.uniforms.uEdgeAmt = (front.uEdgeAmt || { value: 0 });
+    shader.uniforms.uEdgeKind = (front.uEdgeKind || { value: 0 });
+    shader.uniforms.uEdgeSdf = (front.uEdgeSdf || { value: emptyField });
+    shader.uniforms.uEdgeR = (front.uEdgeR || { value: 0 });
+    Object.assign(shader.uniforms, hatchShared);
+    shader.uniforms.uHatchAmt = (front.uHatchAmt || { value: 0 });
+    shader.uniforms.uHatchAng = (front.uHatchAng || { value: 0 });
+    shader.uniforms.uHatchSeed = (front.uHatchSeed || { value: 0 });
+    shader.uniforms.uHatchFromAmt = (front.uHatchFromAmt || { value: 0 });
+    shader.uniforms.uHatchFromAng = (front.uHatchFromAng || { value: 0 });
+    shader.uniforms.uHatchFromSeed = (front.uHatchFromSeed || { value: 0 });
+    shader.uniforms.uEdgeOn = shared.uEdgeOn;
+    shader.uniforms.uEnergy = shared.uEnergy;
+    shader.uniforms.uRespOn = shared.uRespOn;
+    shader.uniforms.uRespEdge = shared.uRespEdge;
+    shader.uniforms.uRespSoft = shared.uRespSoft;
+    shader.uniforms.uRespTooth = shared.uRespTooth;
+    shader.uniforms.uRespAmt = (front.uRespAmt || { value: 0 });
+    shader.uniforms.uSilOn = shared.uSilOn;
+    shader.uniforms.uSoftW = shared.uSoftW;
+    shader.uniforms.uIrrA = shared.uIrrA;
+    shader.uniforms.uEdgeW = shared.uEdgeW;
+    shader.uniforms.uEdgeThin = shared.uEdgeThin;
+    shader.uniforms.uEdgePool = shared.uEdgePool;
+    shader.uniforms.uEdgePaper = shared.uEdgePaper;
+    shader.uniforms.uShadeFrom = tone.uShadeFrom;
+    shader.uniforms.uShadeMid = tone.uShadeMid;
     shader.vertexShader = patchVertex(shader.vertexShader);
     shader.fragmentShader = patchFragment(shader.fragmentShader);
   };
-  material.customProgramCacheKey = () => 'pigment-response-5';
+  material.customProgramCacheKey = () => 'pigment-response-13';
 }
 
 /**
@@ -301,4 +476,39 @@ export function setPaintParams(p) {
   shared.uStrokeLen.value = Math.max(1, p.strokeLength);
   shared.uGammaMid.value = p.followStrokes;
   shared.uGammaCoarse.value = p.followStains;
+}
+
+/**
+ * Live tuning of the edge character (lab). Uniforms only.
+ * @param {{ on: boolean, width: number, thinning: number, pooling: number, softness: number, irregularity: number }} p
+ */
+export function setEdgeParams(p) {
+  shared.uEdgeOn.value = p.on ? 1 : 0;
+  shared.uSoftW.value = p.softness;
+  shared.uIrrA.value = p.irregularity;
+  shared.uSilOn.value = p.softness > 0 || p.irregularity > 0 ? 1 : 0;
+  shared.uEdgeW.value = Math.max(0.0005, p.width);
+  shared.uEdgeThin.value = p.thinning;
+  shared.uEdgePool.value = p.pooling;
+}
+
+/** The paper the thinned paint shows at the edges: the palette's (SceneManager.updateBackground). @param {string} hex */
+export function setEdgePaper(hex) {
+  shared.uEdgePaper.value.set(hex);
+}
+
+/** The shared event clock's energy, once per frame (SceneManager): 0 at rest, so a still is unchanged. @param {number} e */
+export function setMaterialEnergy(e) {
+  shared.uEnergy.value = e;
+}
+
+/**
+ * Live tuning of the materials' response to the event clock (lab). Uniforms only.
+ * @param {{ on: boolean, edge: number, softness: number, tooth: number }} p
+ */
+export function setResponseParams(p) {
+  shared.uRespOn.value = p.on ? 1 : 0;
+  shared.uRespEdge.value = p.edge;
+  shared.uRespSoft.value = p.softness;
+  shared.uRespTooth.value = p.tooth;
 }

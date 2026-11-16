@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { emptyField } from './edgeField.js';
 import { pickStructureTexture } from './PigmentLayer.js';
 import { installPigmentResponse } from './PigmentResponse.js';
 
@@ -79,16 +80,29 @@ export function materialSetMesh(geo, hex, shadeMultipliers, shapeType, materialO
     uFrontA: { value: 1 },      // the layer it interrupted, frozen where it was (1 = none)
     uFrom: { value: new THREE.Color(hex) },
     uMid: { value: new THREE.Color(hex) },
-    uSeed: { value: new THREE.Vector2() }
+    uSeed: { value: new THREE.Vector2() },
+    // the seed of the paint that was there before the change in flight: a form that takes another part's paint keeps the old grain under the front
+    uSeedFrom: { value: new THREE.Vector2() }, seedFromSet: false,
+    // the selective highlight (highlight.js): off until a composition asks for it
+    uHiAmt: { value: 0 }, uHiN: { value: new THREE.Vector3() }, uHiBand: { value: new THREE.Vector2() }, uHiTint: { value: new THREE.Color() },
+    // the edge character (edge.js): off until a composition asks for it
+    uEdgeAmt: { value: 0 }, uEdgeKind: { value: 0 }, uEdgeSdf: { value: emptyField }, uEdgeR: { value: 0 }, uRespAmt: { value: 0 },
+    // hatching (hatch.js): off until a composition asks for it
+    uHatchAmt: { value: 0 }, uHatchAng: { value: 0 }, uHatchSeed: { value: 0 },
+    uHatchFromAmt: { value: 0 }, uHatchFromAng: { value: 0 }, uHatchFromSeed: { value: 0 },
+    hiDir: new THREE.Vector3()
   };
   mats.forEach((mat, i) => installPigmentResponse(mat, shadeMultipliers[i], geo, front, i));
   const mesh = new THREE.Mesh(geo, mats.length === 1 ? mats[0] : mats);
   mesh.userData.shapeType = shapeType;
   mesh.userData.baseColor = new THREE.Color(hex);
   mesh.userData.front = front;
+  // the per-face multipliers in force: a composition strategy may retone the mesh (see tone.js, setShade below)
+  mesh.userData.shade = shadeMultipliers.slice();
   mesh.userData.applyShade = (base) => {
+    const shade = mesh.userData.shade;
     for (let i = 0; i < mats.length; i++) {
-      mats[i].color.copy(clampColor(scratch.copy(base).multiplyScalar(shadeMultipliers[i])));
+      mats[i].color.copy(clampColor(scratch.copy(base).multiplyScalar(shade[i])));
     }
   };
   return mesh;
@@ -105,6 +119,53 @@ export function paintMesh(mesh, color) {
 }
 
 /**
+ * Retones a mesh: sets its per-face multipliers (the tonal system, tone.js). The mesh's colour is not touched here, call
+ * paintMesh() afterwards. A no-op for meshes without face shades (the sphere, test doubles).
+ * @param {THREE.Mesh} mesh @param {number[]} shade one multiplier per material
+ */
+export function setShade(mesh, shade) {
+  const cur = mesh.userData.shade;
+  if (!cur) return;
+  const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  for (let i = 0; i < mats.length; i++) {
+    if (shade[i] !== undefined) cur[i] = shade[i];
+    const t = mats[i].userData && mats[i].userData.tone;
+    if (t) t.shade = cur[i];
+  }
+}
+
+/**
+ * Starts a new layer of tone beside a new layer of colour (Tween.add calls this where it shifts the colour layers): the tone
+ * that was in force becomes the one the overpaint shows under the new colour, so a change of tone rides the colour front instead
+ * of popping. `interrupted`: a change was still in flight, so its layer is kept under the new one. Call it BEFORE setShade.
+ * @param {THREE.Mesh} mesh @param {boolean} interrupted
+ */
+export function shiftShade(mesh, interrupted) {
+  if (!mesh.userData.shade) return;
+  const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  for (const mat of mats) {
+    const t = mat.userData && mat.userData.tone;
+    if (!t) continue;
+    if (interrupted) {
+      t.uShadeFrom.value = t.uShadeMid.value;
+      t.uShadeMid.value = t.shade;
+    } else {
+      t.uShadeFrom.value = t.uShadeMid.value = t.shade;
+    }
+  }
+}
+
+/** Settles a mesh's tone layers onto the tone now in force (no change in flight). @param {THREE.Mesh} mesh */
+export function settleShade(mesh) {
+  if (!mesh.userData.shade) return;
+  const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  for (const mat of mats) {
+    const t = mat.userData && mat.userData.tone;
+    if (t) t.uShadeFrom.value = t.uShadeMid.value = t.shade;
+  }
+}
+
+/**
  * Frees a mesh's GPU resources. Call when an instance is removed for
  * good — three.js never releases geometry, materials or textures on its
  * own, so every removed instance used to leak. Safe because each material
@@ -112,6 +173,9 @@ export function paintMesh(mesh, color) {
  * CanvasTexture per call); the shared pool canvases are not touched.
  */
 export function disposeMesh(mesh) {
+  // its shadow plane (tone: stage 4.2) is a child with its own flat material and the parent's geometry
+  const shadow = mesh.userData && mesh.userData.shadow;
+  if (shadow) { mesh.remove(shadow.mesh); shadow.mesh.material.dispose(); mesh.userData.shadow = null; }
   if (mesh.geometry) mesh.geometry.dispose();
   const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
   mats.forEach((m) => {

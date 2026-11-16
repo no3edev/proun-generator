@@ -16,7 +16,7 @@ async def export(page, scale):
         await page.click('#export-png-btn')
     dl=await d.value; path=await dl.path(); ms=(time.time()-t)*1000
     return Image.open(path).convert('RGB'), ms
-async def stage(page): return Image.open(io.BytesIO(await page.locator('#paper-overlay').screenshot())).convert('RGB')
+async def stage(page): return Image.open(io.BytesIO(await page.locator('#stage-wrap').screenshot())).convert('RGB')
 def arr(im): return np.asarray(im,dtype=float)
 def mad(a,b): return float(np.abs(arr(a)-arr(b)).mean())
 def bands(im, fr=(0.03,0.04,0.30,0.30)):

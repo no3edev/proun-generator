@@ -28,8 +28,9 @@
 /**
  * @typedef {Object} TimeSettings
  * @property {number} durationMs  transition length
- * @property {number} intervalMs  auto-advance period
+ * @property {number} holdMs      rest after a transition; the auto-advance period is durationMs + holdMs
  * @property {boolean} autoAdvance
+ * @property {boolean} playlist     with Auto: the next change is the next Library preset (shuffled, none twice before all) instead of a new seed
  */
 
 /**
@@ -58,6 +59,7 @@
  * @typedef {Object} SceneConfigContext
  * @property {string[]} shapeTypes
  * @property {string[]} paletteNames
+ * @property {Record<string, string>} [paletteAliases]  removed palette names -> the palette that answers to them now
  * @property {string[]} orientationNames
  * @property {string[]} [strategyNames]  selectable composition strategies (default: ['legacy'])
  * @property {string} defaultPalette
@@ -80,6 +82,8 @@
  * @property {[number, number, number]} rotation  Euler radians; ignored for facesCamera shapes
  * @property {[number, number, number]} scale
  * @property {string} hex
+ * @property {number} [plannedDepth]  for a strategy's entries: the depth along the view axis the strategy planned, before the
+ *           depth solver moved the shape (absent for the legacy generator and for locked shapes)
  * @property {string} [role]  compositional role (anchor, support, connector,
  *           accent, detail) when a composition strategy made the entry;
  *           absent for the legacy generator
@@ -90,6 +94,7 @@
  * @typedef {Object} ShapeDef
  * @property {string} type
  * @property {string} label
+ * @property {'sphere'} [volumeKind]  the shape's real volume is a ball (radius = its largest half extent), not an oriented box
  * @property {boolean} facesCamera
  * @property {{x: number, y: number, z: number}} localHalfExtents
  * @property {(hex: string) => import('three').Mesh} create

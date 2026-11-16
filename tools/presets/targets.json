@@ -1,0 +1,350 @@
+{
+ "cracked-grey": {
+  "file": "01.jpg",
+  "aspect": 1.026,
+  "paperLuma": 0.816,
+  "coverage": 0.1525,
+  "centroid": [
+   0.486,
+   0.424
+  ],
+  "spread": [
+   0.149,
+   0.257
+  ],
+  "angle": 71.5,
+  "aniso": 0.747,
+  "grid": [
+   0.055,
+   0.375,
+   0.05,
+   0.02,
+   0.245,
+   0.094,
+   0.107,
+   0.055,
+   0.0
+  ],
+  "darkCoverage": 0.0537,
+  "components": 3
+ },
+ "ochre-suspension": {
+  "file": "images_1.jpg",
+  "aspect": 0.833,
+  "paperLuma": 0.839,
+  "coverage": 0.0935,
+  "centroid": [
+   0.449,
+   0.498
+  ],
+  "spread": [
+   0.206,
+   0.159
+  ],
+  "angle": 138.1,
+  "aniso": 0.857,
+  "grid": [
+   0.13,
+   0.041,
+   0.0,
+   0.193,
+   0.414,
+   0.037,
+   0.0,
+   0.039,
+   0.145
+  ],
+  "darkCoverage": 0.0469,
+  "components": 5
+ },
+ "diagonals-19d": {
+  "file": "02.jpg",
+  "aspect": 1.026,
+  "paperLuma": 0.773,
+  "coverage": 0.3243,
+  "centroid": [
+   0.562,
+   0.597
+  ],
+  "spread": [
+   0.237,
+   0.237
+  ],
+  "angle": 142.3,
+  "aniso": 0.164,
+  "grid": [
+   0.047,
+   0.034,
+   0.039,
+   0.106,
+   0.155,
+   0.224,
+   0.017,
+   0.226,
+   0.152
+  ],
+  "darkCoverage": 0.1386,
+  "components": 5
+ },
+ "grey-cube": {
+  "file": "03.jpg",
+  "aspect": 0.756,
+  "paperLuma": 0.644,
+  "coverage": 0.2599,
+  "centroid": [
+   0.474,
+   0.51
+  ],
+  "spread": [
+   0.165,
+   0.279
+  ],
+  "angle": 95.7,
+  "aniso": 0.809,
+  "grid": [
+   0.083,
+   0.228,
+   0.002,
+   0.124,
+   0.167,
+   0.0,
+   0.039,
+   0.296,
+   0.061
+  ],
+  "darkCoverage": 0.0816,
+  "components": 3
+ },
+ "crossing-beams": {
+  "file": "04.jpg",
+  "aspect": 0.881,
+  "paperLuma": 0.781,
+  "coverage": 0.2068,
+  "centroid": [
+   0.503,
+   0.585
+  ],
+  "spread": [
+   0.196,
+   0.249
+  ],
+  "angle": 70.3,
+  "aniso": 0.626,
+  "grid": [
+   0.033,
+   0.071,
+   0.112,
+   0.019,
+   0.26,
+   0.016,
+   0.111,
+   0.359,
+   0.02
+  ],
+  "darkCoverage": 0.061,
+  "components": 4
+ },
+ "red-bar": {
+  "file": "05.jpg",
+  "aspect": 0.812,
+  "paperLuma": 0.893,
+  "coverage": 0.103,
+  "centroid": [
+   0.484,
+   0.392
+  ],
+  "spread": [
+   0.116,
+   0.243
+  ],
+  "angle": 96.1,
+  "aniso": 0.861,
+  "grid": [
+   0.017,
+   0.405,
+   0.006,
+   0.031,
+   0.301,
+   0.067,
+   0.0,
+   0.173,
+   0.0
+  ],
+  "darkCoverage": 0.0348,
+  "components": 4
+ },
+ "graphite-box": {
+  "file": "proun_01.jpg",
+  "aspect": 0.958,
+  "paperLuma": 0.847,
+  "coverage": 0.1066,
+  "centroid": [
+   0.457,
+   0.426
+  ],
+  "spread": [
+   0.186,
+   0.299
+  ],
+  "angle": 89.5,
+  "aniso": 0.644,
+  "grid": [
+   0.109,
+   0.263,
+   0.077,
+   0.044,
+   0.252,
+   0.0,
+   0.085,
+   0.09,
+   0.081
+  ],
+  "darkCoverage": 0.0166,
+  "components": 9
+ },
+ "black-disc": {
+  "file": "proun_02.jpg",
+  "aspect": 0.799,
+  "paperLuma": 0.704,
+  "coverage": 0.2188,
+  "centroid": [
+   0.448,
+   0.389
+  ],
+  "spread": [
+   0.17,
+   0.131
+  ],
+  "angle": 41.1,
+  "aniso": 0.399,
+  "grid": [
+   0.03,
+   0.243,
+   0.031,
+   0.231,
+   0.351,
+   0.102,
+   0.0,
+   0.012,
+   0.0
+  ],
+  "darkCoverage": 0.1346,
+  "components": 2
+ },
+ "tall-tower": {
+  "file": "proun_03.jpg",
+  "aspect": 0.853,
+  "paperLuma": 0.838,
+  "coverage": 0.0508,
+  "centroid": [
+   0.356,
+   0.635
+  ],
+  "spread": [
+   0.147,
+   0.267
+  ],
+  "angle": 84.2,
+  "aniso": 0.789,
+  "grid": [
+   0.029,
+   0.143,
+   0.025,
+   0.045,
+   0.197,
+   0.0,
+   0.426,
+   0.086,
+   0.049
+  ],
+  "darkCoverage": 0.0052,
+  "components": 13
+ },
+ "long-diagonal": {
+  "file": "proun_04.jpg",
+  "aspect": 1.557,
+  "paperLuma": 0.824,
+  "coverage": 0.0892,
+  "centroid": [
+   0.527,
+   0.35
+  ],
+  "spread": [
+   0.204,
+   0.153
+  ],
+  "angle": 179.1,
+  "aniso": 0.769,
+  "grid": [
+   0.017,
+   0.303,
+   0.145,
+   0.205,
+   0.115,
+   0.214,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "darkCoverage": 0.0332,
+  "components": 4
+ },
+ "disc-and-boxes": {
+  "file": "proun_05.jpg",
+  "aspect": 1.102,
+  "paperLuma": 0.843,
+  "coverage": 0.3341,
+  "centroid": [
+   0.462,
+   0.414
+  ],
+  "spread": [
+   0.292,
+   0.24
+  ],
+  "angle": 178.9,
+  "aniso": 0.442,
+  "grid": [
+   0.155,
+   0.135,
+   0.118,
+   0.135,
+   0.173,
+   0.08,
+   0.087,
+   0.013,
+   0.104
+  ],
+  "darkCoverage": 0.0714,
+  "components": 4
+ },
+ "figurine": {
+  "file": "proun_06.jpg",
+  "aspect": 0.794,
+  "paperLuma": 0.872,
+  "coverage": 0.1362,
+  "centroid": [
+   0.5,
+   0.45
+  ],
+  "spread": [
+   0.131,
+   0.203
+  ],
+  "angle": 96.6,
+  "aniso": 0.749,
+  "grid": [
+   0.0,
+   0.082,
+   0.256,
+   0.0,
+   0.093,
+   0.422,
+   0.0,
+   0.013,
+   0.133
+  ],
+  "darkCoverage": 0.0515,
+  "components": 9
+ }
+}

@@ -1,0 +1,1410 @@
+[
+  {
+    "id": "library-cracked-grey",
+    "name": "Floating blocks on pale ground",
+    "createdAt": "2026-10-28T00:00:00.000Z",
+    "version": 4,
+    "seed": 8439,
+    "palette": "Proun — pale graphite",
+    "orientation": "square",
+    "time": {
+      "durationMs": 1100,
+      "holdMs": 2900,
+      "autoAdvance": false,
+      "playlist": false
+    },
+    "composition": {
+      "strategy": "central-cluster"
+    },
+    "shapes": {
+      "cube-fixed": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "cube-variable": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 2,
+        "snapRotation": false,
+        "locked": null
+      },
+      "circle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "sphere": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "triangle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "plane": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 2,
+        "snapRotation": false,
+        "locked": null
+      },
+      "rod": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 2,
+        "snapRotation": false,
+        "locked": null
+      },
+      "beam": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "segment": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "crescent": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "frame": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "ring": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      }
+    }
+  },
+  {
+    "id": "library-ochre-suspension",
+    "name": "Suspension on ochre",
+    "createdAt": "2026-10-28T00:00:00.000Z",
+    "version": 4,
+    "seed": 8972,
+    "palette": "Proun 99 — ochre suspension",
+    "orientation": "portrait",
+    "time": {
+      "durationMs": 1100,
+      "holdMs": 2900,
+      "autoAdvance": false,
+      "playlist": false
+    },
+    "composition": {
+      "strategy": "axis-thrust"
+    },
+    "shapes": {
+      "cube-fixed": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "cube-variable": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "circle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "sphere": {
+        "visible": true,
+        "sizeMin": 0.3,
+        "sizeMax": 0.35,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "triangle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "plane": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 2,
+        "snapRotation": false,
+        "locked": null
+      },
+      "rod": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 2,
+        "snapRotation": false,
+        "locked": null
+      },
+      "beam": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "segment": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "crescent": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "frame": {
+        "visible": true,
+        "sizeMin": 0.7,
+        "sizeMax": 0.9,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "ring": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      }
+    }
+  },
+  {
+    "id": "library-diagonals-19d",
+    "name": "Diagonals with the ochre disc",
+    "createdAt": "2026-10-28T00:00:00.000Z",
+    "version": 4,
+    "seed": 7690,
+    "palette": "Proun 19D — wood and slate",
+    "orientation": "square",
+    "time": {
+      "durationMs": 1100,
+      "holdMs": 2900,
+      "autoAdvance": false,
+      "playlist": false
+    },
+    "composition": {
+      "strategy": "disc-beams"
+    },
+    "shapes": {
+      "cube-fixed": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "cube-variable": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 2,
+        "snapRotation": false,
+        "locked": null
+      },
+      "circle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "sphere": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "triangle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "plane": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 2,
+        "snapRotation": false,
+        "locked": null
+      },
+      "rod": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "beam": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 3,
+        "snapRotation": false,
+        "locked": null
+      },
+      "segment": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "crescent": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "frame": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "ring": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      }
+    }
+  },
+  {
+    "id": "library-cross-column",
+    "name": "The floating cube",
+    "createdAt": "2026-10-28T00:00:00.000Z",
+    "version": 4,
+    "seed": 9160,
+    "palette": "Proun — grey ground",
+    "orientation": "portrait",
+    "time": {
+      "durationMs": 1100,
+      "holdMs": 2900,
+      "autoAdvance": false,
+      "playlist": false
+    },
+    "composition": {
+      "strategy": "cross"
+    },
+    "shapes": {
+      "cube-fixed": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "cube-variable": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "circle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "sphere": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "triangle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "plane": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "rod": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "beam": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "segment": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "crescent": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "frame": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "ring": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      }
+    }
+  },
+  {
+    "id": "library-crossing-beams",
+    "name": "Crossing beams",
+    "createdAt": "2026-10-28T00:00:00.000Z",
+    "version": 4,
+    "seed": 1437,
+    "palette": "Proun — lithograph on cream",
+    "orientation": "portrait",
+    "time": {
+      "durationMs": 1100,
+      "holdMs": 2900,
+      "autoAdvance": false,
+      "playlist": false
+    },
+    "composition": {
+      "strategy": "axis-thrust"
+    },
+    "shapes": {
+      "cube-fixed": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "cube-variable": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 2,
+        "snapRotation": false,
+        "locked": null
+      },
+      "circle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "sphere": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "triangle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "plane": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "rod": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "beam": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 2,
+        "snapRotation": false,
+        "locked": null
+      },
+      "segment": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "crescent": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "frame": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "ring": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      }
+    }
+  },
+  {
+    "id": "library-cross-red",
+    "name": "Red bar and frame",
+    "createdAt": "2026-10-28T00:00:00.000Z",
+    "version": 4,
+    "seed": 7284,
+    "palette": "Proun — cream and vermilion",
+    "orientation": "portrait",
+    "time": {
+      "durationMs": 1100,
+      "holdMs": 2900,
+      "autoAdvance": false,
+      "playlist": false
+    },
+    "composition": {
+      "strategy": "cross"
+    },
+    "shapes": {
+      "cube-fixed": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "cube-variable": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "circle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "sphere": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "triangle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "plane": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "rod": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "beam": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "segment": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "crescent": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "frame": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "ring": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      }
+    }
+  },
+  {
+    "id": "library-mass-graphite",
+    "name": "Great box on a turned grid",
+    "createdAt": "2026-10-28T00:00:00.000Z",
+    "version": 4,
+    "seed": 9099,
+    "palette": "Proun — pale graphite",
+    "orientation": "square",
+    "time": {
+      "durationMs": 1100,
+      "holdMs": 2900,
+      "autoAdvance": false,
+      "playlist": false
+    },
+    "composition": {
+      "strategy": "mass"
+    },
+    "shapes": {
+      "cube-fixed": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "cube-variable": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "circle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "sphere": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "triangle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "plane": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "rod": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "beam": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "segment": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "crescent": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "frame": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "ring": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      }
+    }
+  },
+  {
+    "id": "library-black-disc",
+    "name": "Black disc and plane",
+    "createdAt": "2026-10-28T00:00:00.000Z",
+    "version": 4,
+    "seed": 487,
+    "palette": "Proun — gouache on toned paper",
+    "orientation": "portrait",
+    "time": {
+      "durationMs": 1100,
+      "holdMs": 2900,
+      "autoAdvance": false,
+      "playlist": false
+    },
+    "composition": {
+      "strategy": "disc-beams"
+    },
+    "shapes": {
+      "cube-fixed": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "cube-variable": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "circle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "sphere": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "triangle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "plane": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": true,
+        "locked": null
+      },
+      "rod": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 3,
+        "snapRotation": true,
+        "locked": null
+      },
+      "beam": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": true,
+        "locked": null
+      },
+      "segment": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "crescent": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "frame": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "ring": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      }
+    }
+  },
+  {
+    "id": "library-mass-long",
+    "name": "Long diagonal",
+    "createdAt": "2026-10-28T00:00:00.000Z",
+    "version": 4,
+    "seed": 7359,
+    "palette": "Proun — lithograph on cream",
+    "orientation": "landscape",
+    "time": {
+      "durationMs": 1100,
+      "holdMs": 2900,
+      "autoAdvance": false,
+      "playlist": false
+    },
+    "composition": {
+      "strategy": "mass"
+    },
+    "shapes": {
+      "cube-fixed": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "cube-variable": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "circle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "sphere": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "triangle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "plane": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "rod": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "beam": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "segment": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "crescent": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "frame": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "ring": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      }
+    }
+  },
+  {
+    "id": "library-mass-disc",
+    "name": "Disc and boxes",
+    "createdAt": "2026-10-28T00:00:00.000Z",
+    "version": 4,
+    "seed": 4740,
+    "palette": "Proun — lithograph on cream",
+    "orientation": "landscape",
+    "time": {
+      "durationMs": 1100,
+      "holdMs": 2900,
+      "autoAdvance": false,
+      "playlist": false
+    },
+    "composition": {
+      "strategy": "mass"
+    },
+    "shapes": {
+      "cube-fixed": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "cube-variable": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "circle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "sphere": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "triangle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "plane": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "rod": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "beam": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "segment": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "crescent": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "frame": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "ring": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      }
+    }
+  },
+  {
+    "id": "library-tower-tall",
+    "name": "The tall tower",
+    "createdAt": "2026-10-28T00:00:00.000Z",
+    "version": 4,
+    "seed": 6537,
+    "palette": "Proun — lithograph on cream",
+    "orientation": "portrait",
+    "time": {
+      "durationMs": 1100,
+      "holdMs": 2900,
+      "autoAdvance": false,
+      "playlist": false
+    },
+    "composition": {
+      "strategy": "tower"
+    },
+    "shapes": {
+      "cube-fixed": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "cube-variable": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "circle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "sphere": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "triangle": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "plane": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "rod": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "beam": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 1,
+        "snapRotation": false,
+        "locked": null
+      },
+      "segment": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "crescent": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "frame": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      },
+      "ring": {
+        "visible": true,
+        "sizeMin": 1,
+        "sizeMax": 1,
+        "spread": 1,
+        "count": 0,
+        "snapRotation": false,
+        "locked": null
+      }
+    }
+  }
+]

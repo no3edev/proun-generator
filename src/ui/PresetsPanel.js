@@ -1,6 +1,8 @@
 import { PresetStore, MAX_PRESETS } from '../presets/PresetStore.js';
 import { SceneConfig } from '../config/store.js';
 import { createAccordionItem } from './accordion.js';
+import { LIBRARY } from '../presets/library.js';
+import { applyPreset } from '../presets/applyPreset.js';
 
 function downloadText(filename, text) {
   const blob = new Blob([text], { type: 'application/json' });
@@ -18,6 +20,17 @@ function slug(name) {
   return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'preset';
 }
 
+function libraryIconBtn(glyph, label, onClick) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'icon-btn';
+  btn.textContent = glyph;
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+  btn.addEventListener('click', onClick);
+  return btn;
+}
+
 function formatDate(iso) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
@@ -28,7 +41,9 @@ function formatDate(iso) {
  * Builds the "Presets" accordion section into `container`: a name
  * field + Save, the saved-preset list (Load / Export / Delete per
  * row, capped at MAX_PRESETS — saving past the cap drops the oldest),
- * and Export all / Import.
+ * and Export all / Import. Below the saved list, the built-in Library:
+ * compositions after Lissitzky's Prouns (presets/library.js), read-only,
+ * each with Load and "Save a copy" into the saved list.
  *
  * A preset is a stored SceneConfig: Save writes the current config,
  * Load replaces it (the panel controls and the scene follow the config,
@@ -66,6 +81,38 @@ export function buildPresetsPanel(container) {
   list.className = 'preset-list';
   body.appendChild(list);
 
+  // --- the built-in Library (read-only) ---
+  const libLabel = document.createElement('div');
+  libLabel.className = 'preset-count';
+  libLabel.textContent = `LIBRARY · ${LIBRARY.length}`;
+  body.appendChild(libLabel);
+  const libList = document.createElement('div');
+  libList.className = 'preset-list preset-library';
+  LIBRARY.forEach((entry) => {
+    const row = document.createElement('div');
+    row.className = 'preset-row';
+    row.title = `${entry.name} — after ${entry.after}. ${entry.note}`;
+    const nameEl = document.createElement('div');
+    nameEl.className = 'preset-name';
+    nameEl.textContent = entry.name;
+    const actions = document.createElement('div');
+    actions.className = 'preset-actions';
+    actions.appendChild(libraryIconBtn('▶', 'Load preset', () => {
+      applyPreset(SceneConfig, entry.config);
+      setStatus(`Loaded "${entry.name}".`);
+    }));
+    actions.appendChild(libraryIconBtn('⧉', 'Save a copy to my presets', () => {
+      const wasFull = PresetStore.list().length >= MAX_PRESETS;
+      PresetStore.save(entry.name, entry.config);
+      render();
+      setStatus(wasFull ? `Saved a copy of "${entry.name}" — oldest preset dropped (limit ${MAX_PRESETS}).` : `Saved a copy of "${entry.name}".`);
+    }));
+    row.appendChild(nameEl);
+    row.appendChild(actions);
+    libList.appendChild(row);
+  });
+  body.appendChild(libList);
+
   // --- export all / import ---
   const ioRow = document.createElement('div');
   ioRow.className = 'row preset-io-row';
@@ -96,7 +143,7 @@ export function buildPresetsPanel(container) {
   }
 
   function loadPreset(p) {
-    SceneConfig.replace(p);
+    applyPreset(SceneConfig, p);
     setStatus(`Loaded "${p.name}".`);
   }
 

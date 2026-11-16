@@ -33,14 +33,6 @@ html, body {
   width: 100%;
   height: 100%;
 }
-#paper-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  mix-blend-mode: multiply;
-  /* opacity is set from JS (config/defaults.js OVERLAY_OPACITY) so the
-     on-screen overlay and the PNG export share one value */
-}
 #hint {
   position: absolute;
   left: 14px;
@@ -207,7 +199,11 @@ button.secondary { border-color: rgba(233, 228, 216, 0.35); }
 
 .export-row { display: flex; gap: 8px; align-items: stretch; }
 .export-row #export-png-btn { flex: 1; min-width: 0; }
-.export-row select { flex: 0 0 62px; width: 62px; }
+.export-row select { flex: 0 0 100px; width: 100px; }
+.export-row[hidden] { display: none; }
+#export-size-row { align-items: center; }
+#export-size-row label { flex: 1; min-width: 0; margin: 0; }
+#export-size-row input { flex: 0 0 100px; width: 100px; }
 .advance-row { display: flex; gap: 8px; }
 .advance-row #advance-btn { flex: 1; min-width: 0; white-space: nowrap; }
 .step-btn { flex: 0 0 38px; padding: 11px 0; font-size: 16px; letter-spacing: 0; line-height: 1; }
@@ -254,16 +250,16 @@ input[type="range"] { accent-color: var(--accent); }
 .accordion-panel .field label { display: flex; justify-content: space-between; }
 .accordion-panel[hidden] { display: none; }
 
-/* shape tabs: one row of glyphs, red tick under the active one */
+/* shape tabs: glyphs in a grid that wraps, red tick under the active one */
 .tabs-nav {
-  /* one row of equal columns for however many shapes are registered —
-     a new shape must not need a CSS edit (it used to be hard-coded to 6) */
+  /* as many equal columns as fit (about six in the panel), wrapping onto more rows: a dozen shapes in one row were
+     squeezed to nothing, and a new shape must not need a CSS edit (it used to be hard-coded to 6) */
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
   gap: 0;
   margin-bottom: 26px;
 }
+.tab-btn[hidden] { display: none; }
 .tab-btn {
   position: relative;
   width: auto;
@@ -449,3 +445,38 @@ input[type="range"]::-moz-range-thumb { width: 8px; height: 8px; background: var
   color: var(--panel-dim);
 }
 body[data-strategy]:not([data-strategy="legacy"]) .count-hint { display: block; }
+
+/* layout diagnostics (ui/DiagnosticsPanel.js): a read-only list of label and value */
+.diag-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 14px;
+  padding: 6px 0;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--panel-line);
+  color: var(--panel-dim);
+}
+.diag-label { min-width: 0; }
+.diag-value {
+  color: var(--panel-fg);
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Exhibition mode (core/ExhibitionMode.js): the picture alone, filling the window, on black ----
+   Only the look changes; nothing here pauses or disturbs playback. */
+body.exhibition,
+body.exhibition #app { background: #000; padding: 0; }
+body.exhibition #panel,
+body.exhibition #hint { display: none; }
+body.exhibition #stage-wrap { box-shadow: none; max-width: none; max-height: none; }
+body.exhibition.exhibition-idle,
+body.exhibition.exhibition-idle * { cursor: none; }
+
+/* A page the watchdog reloads (core/watchdog.js) fades out, reloads and fades in, so a refresh is a soft dip and not a flash. */
+#stage-wrap { transition: opacity 0.9s ease; }
+body.reloading #stage-wrap { opacity: 0; transition-duration: 0.7s; }
+body.reload-start #stage-wrap { opacity: 0; transition: none; }

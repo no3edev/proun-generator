@@ -5,7 +5,7 @@ import {
   screenDirection, barOrientation, flatOrientation, blockOrientation,
   luminance, pickWeighted, between, rad
 } from './common.js';
-import { thrustAngle, T, sizeMult, spreadOf, scaleFor } from './shared.js';
+import { thrustAngle, T, sizeMult, spreadOf, scaleFor, ALL_TYPES, frontBiasedDepth, HAIRLINE_BACK, HAIRLINE_FRONT } from './shared.js';
 
 /** @typedef {import('./run.js').PlanItem} PlanItem */
 /** @typedef {import('./run.js').Strategy} Strategy */
@@ -32,6 +32,8 @@ import { thrustAngle, T, sizeMult, spreadOf, scaleFor } from './shared.js';
 /** @type {Strategy} */
 export const discBeams = {
   label: 'Disc and beams',
+  // never places a sphere: the disc is a flat circle (or a segment), so the sphere has no part here
+  uses: ALL_TYPES.filter((t) => t !== T.sphere),
 
   plan(ctx) {
     const { seed, frame, basis, colors } = ctx;
@@ -68,7 +70,7 @@ export const discBeams = {
     // --- the disc ---------------------------------------------------------------
     const rn = R('disc');
     const anchorType = has(T.circle) ? T.circle : pickWeighted(rn, /** @type {Array<[string, number]>} */ ([
-      [T.segment, 0.4], [T.sphere, 0.2], [T.block, 0.25], [T.cube, 0.15]
+      [T.segment, 0.4], [T.block, 0.25], [T.cube, 0.15]
     ]).filter(([t]) => has(t)));
     // a little off centre, and free to bleed off the frame
     const dx = (rn() * 2 - 1) * 0.35 * frame.halfW;
@@ -87,8 +89,6 @@ export const discBeams = {
       } else if (anchorType === T.segment) {
         scale = scaleFor(ctx, T.segment, d, d * between(rn, 0.3, 0.5), d * 0.06);
         orientation = flatOrientation(basis, ctx.billboard, theta + (rn() < 0.5 ? 0 : Math.PI));
-      } else if (anchorType === T.sphere) {
-        scale = scaleFor(ctx, T.sphere, d * 0.7, d * 0.7, d * 0.7);
       } else {
         const e = d * (anchorType === T.cube ? 0.45 : 0.6);
         scale = anchorType === T.cube
@@ -225,7 +225,7 @@ export const discBeams = {
         const hex = accentHue && r() < 0.3 ? accentHue : (discIsDark && r() < 0.5 ? light[light.length - 1] : ctx.ink);
         items.push({
           type: detailType, role: 'detail', x: disc.x + axis.x * along + normal.x * off, y: disc.y + axis.y * along + normal.y * off,
-          depth: between(r, -1.0, 3.0),
+          depth: frontBiasedDepth(between(r, HAIRLINE_BACK, HAIRLINE_FRONT)),
           orientation: barOrientation(screenDirection(basis, ang, tilt), rad(between(r, 0, 90))), scale: scaleFor(ctx, detailType, len, w, w), hex
         });
       }

@@ -25,7 +25,9 @@ async def main():
         for _ in range(6): await page.click('#advance-btn'); await page.wait_for_timeout(400)
         await page.wait_for_timeout(6000); print('after more changes:', await page.evaluate(INFO))
         # relative frame cost at rest (software GL: only ratios mean anything)
-        await page.wait_for_timeout(3000)
+        # wait until the ground's morph has really ended (v0.14.1: only then is the ground cached and the frame at rest)
+        await page.wait_for_function('window.__proun && window.__proun.groundMotion.level === 0 && Number.isInteger(window.__proun.groundMotion.pos)', timeout=120000)
+        await page.wait_for_timeout(1500)
         for name,kw in [('everything on (defaults)',{}),('ground off',{'groundOn':False}),('legacy paint pattern, ground off',{'groundOn':False,'paintOn':False})]:
             await setl(page,**kw); await page.wait_for_timeout(1500); ms=await page.evaluate(FRAMES,25); print(f'median frame at rest, {name}: {ms:.0f} ms')
         await b.close()

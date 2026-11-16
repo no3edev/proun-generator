@@ -138,3 +138,54 @@ describe('ground motion', () => {
     g.groundMotion.enabled = true;
   });
 });
+
+describe('ground cache (v0.14.1)', () => {
+  it('the copy the scene draws reads one texel per pixel and converts like every material', async () => {
+    const { BLIT_FRAGMENT } = await import('../src/texture/GroundLayer.js');
+    expect(BLIT_FRAGMENT).toContain('texelFetch( uMap, ivec2( gl_FragCoord.xy ), 0 )');
+    expect(BLIT_FRAGMENT).toContain('#include <colorspace_fragment>');
+  });
+
+  it('the change detector reports the first list, a changed list, and nothing for the same list', async () => {
+    const { createChangeDetector } = await import('../src/texture/GroundLayer.js');
+    const d = createChangeDetector();
+    expect(d.changed([1, 2, 3])).toBe(true);
+    expect(d.changed([1, 2, 3])).toBe(false);
+    expect(d.changed([1, 2, 4])).toBe(true);
+    expect(d.changed([1, 2, 4])).toBe(false);
+    expect(d.changed([1, 2, 4, 5])).toBe(true);   // a different length is a change
+    d.forget();
+    expect(d.changed([1, 2, 4, 5])).toBe(true);
+  });
+
+  it('at rest the ground\'s signature is constant, and every way of changing the ground changes it', async () => {
+    const g = await import('../src/texture/GroundLayer.js');
+    const { Rhythm } = await import('../src/core/Rhythm.js');
+    Rhythm.reset();
+    g.resetGroundMotion();
+    g.groundMotion.enabled = true;
+    const step = (seed) => g.updateGroundMotion({ duration: 1000, hold: null }, 16, seed);
+    for (let i = 0; i < 5; i++) step(1001);
+    const rest = g.groundSignature();
+    for (let i = 0; i < 50; i++) step(1001);
+    expect(g.groundSignature()).toEqual(rest);                       // nothing moves at rest: no redraw
+    // a seed change moves it for as long as the morph runs, then it settles on a new constant
+    step(2002);
+    for (let i = 0; i < 20; i++) step(2002);
+    expect(g.groundSignature()).not.toEqual(rest);
+    for (let i = 0; i < 1500; i++) step(2002);
+    const settled = g.groundSignature();
+    for (let i = 0; i < 20; i++) step(2002);
+    expect(g.groundSignature()).toEqual(settled);
+    // palette, lab edits and the aspect each change it
+    const before = g.groundSignature();
+    g.setGroundPaper('#123456');
+    expect(g.groundSignature()).not.toEqual(before);
+    const b2 = g.groundSignature();
+    g.setGroundAspect(1.234);
+    expect(g.groundSignature()).not.toEqual(b2);
+    const b3 = g.groundSignature();
+    g.setGroundParams({ on: true, visibility: 0.05, scale: 1, cracks: 0.5, crackScale: 1, crackStretch: 2, crackVary: 1 });
+    expect(g.groundSignature()).not.toEqual(b3);
+  });
+});

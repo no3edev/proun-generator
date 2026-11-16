@@ -10,15 +10,15 @@ async def run(pw, url, init=None):
     b, page = await new_page(pw, url, init=init)
     out = {}
     out['rest'] = await grab(page)
-    out['rest_page'] = await page.locator('#paper-overlay').screenshot()
+    out['rest_page'] = await page.locator('#stage-wrap').screenshot()
     await page.click('#advance-btn')
     await page.wait_for_timeout(4800)
     out['after1'] = await grab(page)
-    out['after1_page'] = await page.locator('#paper-overlay').screenshot()
+    out['after1_page'] = await page.locator('#stage-wrap').screenshot()
     await page.click('#advance-btn')
     await page.wait_for_timeout(4800)
     out['after2'] = await grab(page)
-    out['after2_page'] = await page.locator('#paper-overlay').screenshot()
+    out['after2_page'] = await page.locator('#stage-wrap').screenshot()
     await b.close()
     return out
 def cmp(a, b):

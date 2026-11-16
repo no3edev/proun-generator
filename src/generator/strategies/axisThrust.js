@@ -5,7 +5,7 @@ import {
   screenDirection, barOrientation, flatOrientation, blockOrientation,
   luminance, pickWeighted, between, rad
 } from './common.js';
-import { ANGLE_FAMILIES, thrustAngle, T, sizeMult, spreadOf, scaleFor } from './shared.js';
+import { ANGLE_FAMILIES, thrustAngle, T, sizeMult, spreadOf, scaleFor, frontBiasedDepth, HAIRLINE_BACK, HAIRLINE_FRONT } from './shared.js';
 
 /** @typedef {import('./run.js').PlanItem} PlanItem */
 /** @typedef {import('./run.js').PlanContext} PlanContext */
@@ -223,7 +223,7 @@ export const axisThrust = {
         // a hairline is ink, or (occasionally) the accent, as in the references' red lines
         const hex = accentHue && r() < 0.3 ? accentHue : ctx.ink;
         items.push({
-          type: detailType, role: 'detail', x, y, depth: between(r, -1.0, 3.0),
+          type: detailType, role: 'detail', x, y, depth: frontBiasedDepth(between(r, HAIRLINE_BACK, HAIRLINE_FRONT)),
           orientation: barOrientation(screenDirection(basis, ang, tilt), rad(between(r, 0, 90))),
           scale: scaleFor(ctx, detailType, len, w, w), hex
         });

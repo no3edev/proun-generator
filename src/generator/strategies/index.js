@@ -2,6 +2,9 @@
 import { axisThrust } from './axisThrust.js';
 import { discBeams } from './discBeams.js';
 import { centralCluster } from './centralCluster.js';
+import { tower } from './tower.js';
+import { cross } from './cross.js';
+import { mass } from './mass.js';
 
 /** @typedef {import('./run.js').Strategy} Strategy */
 
@@ -19,7 +22,10 @@ export const DEFAULT_STRATEGY = 'legacy';
 export const STRATEGIES = {
   'axis-thrust': axisThrust,
   'disc-beams': discBeams,
-  'central-cluster': centralCluster
+  'central-cluster': centralCluster,
+  tower,
+  cross,
+  mass
 };
 
 /** every selectable strategy name, legacy first */
@@ -29,4 +35,14 @@ export const STRATEGY_NAMES = [DEFAULT_STRATEGY, ...Object.keys(STRATEGIES)];
 export const STRATEGY_LABELS = {
   [DEFAULT_STRATEGY]: 'Legacy (independent placement)',
   ...Object.fromEntries(Object.entries(STRATEGIES).map(([k, s]) => [k, s.label]))
+};
+
+/**
+ * The shape types each strategy places, for the shapes menu; null means all of them (the legacy generator, and any strategy
+ * that does not say). Kept true by tests/strategyUses.test.js.
+ * @type {Record<string, Set<string> | null>}
+ */
+export const STRATEGY_USES = {
+  [DEFAULT_STRATEGY]: null,
+  ...Object.fromEntries(Object.entries(STRATEGIES).map(([k, s]) => [k, s.uses ? new Set(s.uses) : null]))
 };

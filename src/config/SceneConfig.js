@@ -1,6 +1,6 @@
 // @ts-check
 import {
-  SHAPE_LIMITS, SHAPE_DEFAULTS, LOCK_LIMITS, TIME, clampDuration, clampInterval
+  SHAPE_LIMITS, SHAPE_DEFAULTS, LOCK_LIMITS, TIME, clampDuration, clampHold, clampLegacyInterval
 } from './defaults.js';
 import { randomSeed as defaultRandomSeed } from '../generator/rng.js';
 
@@ -19,7 +19,7 @@ export const LEGACY_STRATEGY = 'legacy';
 //
 //   {
 //     version, seed, palette, orientation,
-//     time:   { durationMs, intervalMs, autoAdvance },
+//     time:   { durationMs, holdMs, autoAdvance, playlist },
 //     composition: { strategy },
 //     shapes: { [type]: { visible, count, sizeMin, sizeMax, spread } }
 //   }
@@ -41,8 +41,11 @@ export const LEGACY_STRATEGY = 'legacy';
  *   2  adds `seed` — loading a preset restores the exact composition
  *   3  adds `composition.strategy` — absent (every v1/v2 config) means 'legacy',
  *      the original generator, so older presets and links give the same layouts
+ *   4  Stage 6: `time.intervalMs` (the period) becomes `time.holdMs` (the rest after the transition);
+ *      the period is durationMs + holdMs. A v3 interval X is read as a hold of max(0, X - durationMs),
+ *      so a saved configuration keeps its cadence
  */
-export const CONFIG_VERSION = 3;
+export const CONFIG_VERSION = 4;
 
 /**
  * Migration steps: MIGRATIONS[n] takes a raw version-n object and returns
@@ -58,7 +61,19 @@ export const MIGRATIONS = {
   1: (raw) => ({ ...raw }),
   // v2 -> v3: `composition` was added. A v2 config has none; normalizeConfig
   // reads that as the legacy strategy.
-  2: (raw) => ({ ...raw })
+  2: (raw) => ({ ...raw }),
+  // v3 -> v4: the interval became a hold. Same cadence as before: hold = interval - duration (never below 0,
+  // where the old interval was shorter than the transition, which meant "change again mid-way").
+  3: (raw) => {
+    const t = raw.time && typeof raw.time === 'object' && !Array.isArray(raw.time) ? { ...raw.time } : null;
+    if (!t) return { ...raw };
+    if (isNum(t.intervalMs)) {
+      const duration = isNum(t.durationMs) ? clampDuration(t.durationMs) : TIME.durationMs.default;
+      t.holdMs = Math.max(0, clampLegacyInterval(t.intervalMs) - duration);
+    }
+    delete t.intervalMs;
+    return { ...raw, time: t };
+  }
 };
 
 /**
@@ -131,8 +146,9 @@ function normalizeTime(base, patch) {
   const p = patch && typeof patch === 'object' ? patch : {};
   return {
     durationMs: isNum(p.durationMs) ? clampDuration(p.durationMs) : base.durationMs,
-    intervalMs: isNum(p.intervalMs) ? clampInterval(p.intervalMs) : base.intervalMs,
-    autoAdvance: typeof p.autoAdvance === 'boolean' ? p.autoAdvance : base.autoAdvance
+    holdMs: isNum(p.holdMs) ? clampHold(p.holdMs) : base.holdMs,
+    autoAdvance: typeof p.autoAdvance === 'boolean' ? p.autoAdvance : base.autoAdvance,
+    playlist: typeof p.playlist === 'boolean' ? p.playlist : base.playlist
   };
 }
 
@@ -232,8 +248,9 @@ export function createDefaultConfig({ shapeTypes, defaultPalette, defaultOrienta
     orientation: defaultOrientation,
     time: {
       durationMs: TIME.durationMs.default,
-      intervalMs: TIME.intervalMs.default,
-      autoAdvance: false
+      holdMs: TIME.holdMs.default,
+      autoAdvance: false,
+      playlist: false
     },
     composition: { strategy: LEGACY_STRATEGY },
     shapes
@@ -281,14 +298,26 @@ export function normalizeConfig(raw, base, ctx) {
   return freezeDeep({
     version: CONFIG_VERSION,
     seed: seed === null ? ctx.randomSeed() : seed,
-    palette: ctx.paletteNames.includes(src.palette) ? src.palette : base.palette,
+    palette: resolvePalette(src.palette, ctx) || base.palette,
     orientation: ctx.orientationNames.includes(src.orientation) ? src.orientation : base.orientation,
     // a preset that doesn't say autoAdvance means off
-    time: normalizeTime(base.time, { ...(src.time || {}), autoAdvance: !!(src.time && src.time.autoAdvance) }),
+    time: normalizeTime(base.time, { ...(src.time || {}), autoAdvance: !!(src.time && src.time.autoAdvance), playlist: !!(src.time && src.time.playlist) }),
     // a preset that doesn't say means legacy (like autoAdvance, never inherited)
     composition: { strategy: normalizeStrategy(src.composition && src.composition.strategy, ctx) },
     shapes
   });
+}
+
+/**
+ * A palette name as the app knows it: itself, or the palette a removed name now answers to (ctx.paletteAliases); null if neither.
+ * @param {any} name @param {SceneConfigContext} ctx
+ * @returns {string | null}
+ */
+function resolvePalette(name, ctx) {
+  if (typeof name !== 'string') return null;
+  if (ctx.paletteNames.includes(name)) return name;
+  const alias = ctx.paletteAliases && Object.prototype.hasOwnProperty.call(ctx.paletteAliases, name) ? ctx.paletteAliases[name] : null;
+  return alias && ctx.paletteNames.includes(alias) ? alias : null;
 }
 
 /**
@@ -300,7 +329,8 @@ export function normalizeConfig(raw, base, ctx) {
 function applyPatch(state, patch, ctx) {
   const p = patch && typeof patch === 'object' ? patch : {};
   const next = { ...state };
-  if (ctx.paletteNames.includes(p.palette)) next.palette = p.palette;
+  const palette = resolvePalette(p.palette, ctx);
+  if (palette) next.palette = palette;
   if (ctx.orientationNames.includes(p.orientation)) next.orientation = p.orientation;
   const seed = normalizeSeed(p.seed);
   if (seed !== null) next.seed = seed;
@@ -366,10 +396,16 @@ export function createSceneConfig(ctx) {
      * It ALWAYS notifies, even when the result equals the current config:
      * loading a preset is an explicit "show me this", and the scene may be
      * stale (settings changed since the last advance don't re-layout).
+     * `keepTime` keeps the viewer's own timing (transition, hold, Auto): a preset is a COMPOSITION, and on an unattended
+     * display it must not reset Exhibition timing to whatever it was saved with. The restored session is the viewer's
+     * own state and takes everything, time included.
      * @param {unknown} raw
+     * @param {{ keepTime?: boolean }} [options]
      */
-    replace(raw) {
-      return commit(normalizeConfig(raw, state, context), { replaced: true }, true);
+    replace(raw, { keepTime = false } = {}) {
+      let next = normalizeConfig(raw, state, context);
+      if (keepTime) next = freezeDeep({ ...next, time: state.time });
+      return commit(next, { replaced: true }, true);
     },
 
     /**

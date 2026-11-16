@@ -36,11 +36,61 @@ describe('SceneConfig defaults and update()', () => {
     expect(cube.sizeMax).toBe(5);
   });
 
-  it('clamps timing to the documented ranges (the ceiling Stage 6 will have to raise)', () => {
+  it('clamps timing to the documented ranges (a 5 minute transition and a 60 minute hold at most; a hold may be 0)', () => {
     const c = createSceneConfig(ctx());
-    c.update({ time: { durationMs: 10 ** 9, intervalMs: 1 } });
+    c.update({ time: { durationMs: 10 ** 9, holdMs: 10 ** 9 } });
     expect(c.get().time.durationMs).toBe(TIME.durationMs.max);
-    expect(c.get().time.intervalMs).toBe(TIME.intervalMs.min);
+    expect(c.get().time.holdMs).toBe(TIME.holdMs.max);
+    expect([TIME.durationMs.max, TIME.holdMs.max]).toEqual([300_000, 3_600_000]);
+    c.update({ time: { durationMs: 1, holdMs: -5 } });
+    expect(c.get().time.durationMs).toBe(TIME.durationMs.min);
+    expect(c.get().time.holdMs).toBe(0);
+  });
+
+  describe('time migration (config v3 -> v4: the interval became a hold)', () => {
+    const load = (time, version = 3) => {
+      const c = createSceneConfig(ctx());
+      c.replace({ version, seed: 7, palette: 'A', orientation: 'landscape', time, shapes: {} });
+      return c.get().time;
+    };
+
+    it('keeps the cadence: hold = interval - duration', () => {
+      expect(load({ durationMs: 1100, intervalMs: 4000, autoAdvance: true })).toMatchObject({ durationMs: 1100, holdMs: 2900, autoAdvance: true });
+      expect(load({ durationMs: 500, intervalMs: 20000 })).toMatchObject({ durationMs: 500, holdMs: 19500 });
+    });
+
+    it('an interval shorter than the transition (it meant "change again mid-way") becomes a hold of 0', () => {
+      expect(load({ durationMs: 6000, intervalMs: 4000 }).holdMs).toBe(0);
+      expect(load({ durationMs: 1100, intervalMs: 500 }).holdMs).toBe(0);
+    });
+
+    it('a missing duration reads as the default, a missing interval leaves the default hold, junk is ignored', () => {
+      expect(load({ intervalMs: 4000 })).toMatchObject({ durationMs: TIME.durationMs.default, holdMs: 4000 - TIME.durationMs.default });
+      expect(load({ durationMs: 2000 }).holdMs).toBe(TIME.holdMs.default);
+      expect(load({ durationMs: 'x', intervalMs: null }).holdMs).toBe(TIME.holdMs.default);
+      expect(load(undefined).holdMs).toBe(TIME.holdMs.default);
+    });
+
+    it('a config with no version (the oldest format) and one already at v4 both load', () => {
+      expect(load({ durationMs: 1100, intervalMs: 4000 }, undefined).holdMs).toBe(2900);
+      expect(load({ durationMs: 60_000, holdMs: 900_000 }, 4)).toMatchObject({ durationMs: 60_000, holdMs: 900_000 });
+    });
+
+    it('a v4 config is not converted again, and its toJSON carries holdMs and no intervalMs', () => {
+      const c = createSceneConfig(ctx());
+      c.update({ time: { durationMs: 60_000, holdMs: 900_000 } });
+      const j = c.toJSON();
+      expect(j.version).toBe(CONFIG_VERSION);
+      expect(j.time).toEqual({ durationMs: 60_000, holdMs: 900_000, autoAdvance: false, playlist: false });
+      const d = createSceneConfig(ctx());
+      d.replace(JSON.parse(JSON.stringify(j)));
+      expect(d.get().time).toEqual(c.get().time);
+    });
+
+    it('the defaults keep the old 4 s cadence', () => {
+      const t = createSceneConfig(ctx()).get().time;
+      expect(t.durationMs + t.holdMs).toBe(4000);
+    });
   });
 
   it('ignores unknown palettes, orientations and shape types', () => {

@@ -1,0 +1,74 @@
+{
+  "axis-thrust-faceted": {
+    "strategy": "axis-thrust",
+    "seed": 11,
+    "mode": "faceted",
+    "size": [
+      720,
+      560
+    ]
+  },
+  "axis-thrust-subtle": {
+    "strategy": "axis-thrust",
+    "seed": 159,
+    "mode": "subtle",
+    "size": [
+      720,
+      560
+    ]
+  },
+  "disc-beams-subtle": {
+    "strategy": "disc-beams",
+    "seed": 122,
+    "mode": "subtle",
+    "size": [
+      720,
+      560
+    ]
+  },
+  "disc-beams-pale": {
+    "strategy": "disc-beams",
+    "seed": 418,
+    "mode": "pale",
+    "size": [
+      720,
+      560
+    ]
+  },
+  "central-cluster-faceted": {
+    "strategy": "central-cluster",
+    "seed": 11,
+    "mode": "faceted",
+    "size": [
+      720,
+      560
+    ]
+  },
+  "central-cluster-pale": {
+    "strategy": "central-cluster",
+    "seed": 529,
+    "mode": "pale",
+    "size": [
+      720,
+      560
+    ]
+  },
+  "mass-hatched-11": {
+    "strategy": "mass",
+    "seed": 11,
+    "mode": null,
+    "size": [
+      720,
+      560
+    ]
+  },
+  "mass-hatched-529": {
+    "strategy": "mass",
+    "seed": 529,
+    "mode": null,
+    "size": [
+      720,
+      560
+    ]
+  }
+}

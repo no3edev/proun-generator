@@ -14,7 +14,7 @@ async def page_with(pw, stub, url, perms=True):
     page = await ctx.new_page(); await page.add_init_script(stub); await page.goto(url); await page.wait_for_selector('#scene'); await page.wait_for_timeout(1200)
     return b, page
 async def canvas(page): return np.asarray(Image.open(io.BytesIO(await grab(page))).convert('RGB'),dtype=np.int16)
-async def stage(page): return np.asarray(Image.open(io.BytesIO(await page.locator('#paper-overlay').screenshot())).convert('RGB'),dtype=np.int16)
+async def stage(page): return np.asarray(Image.open(io.BytesIO(await page.locator('#stage-wrap').screenshot())).convert('RGB'),dtype=np.int16)
 def diff(a,b): return int((np.abs(a-b).max(axis=2)>0).sum())
 async def main():
     async with async_playwright() as pw:

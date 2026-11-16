@@ -5,10 +5,24 @@
 // import from tests).
 
 // --- time ---------------------------------------------------------
+// A change cycle is a TRANSITION (the window in which shapes move) followed by a
+// HOLD (the rest before the next change starts): the period is their sum. The
+// Dev defaults (1.1 s + 2.9 s) keep the old 4 s cadence; Exhibition is the
+// long-duration target (1 minute moving, 15 minutes still). Both are stored in
+// ms; the panel shows seconds.
 export const TIME = {
-  durationMs: { min: 200, max: 6000, step: 100, default: 1100 },
-  intervalMs: { min: 500, max: 20000, step: 100, default: 4000 }
+  durationMs: { min: 200, max: 300000, step: 100, default: 1100 },
+  holdMs: { min: 0, max: 3600000, step: 100, default: 2900 }
 };
+
+/** Named timing presets (Motion tab). A config whose two values match neither shows as "Custom". */
+export const TIMING_PRESETS = {
+  dev: { label: 'Dev', durationMs: 1100, holdMs: 2900 },
+  exhibition: { label: 'Exhibition', durationMs: 60000, holdMs: 900000 }
+};
+
+/** The range the interval had before Stage 6 (config version 3): only the v3 -> v4 migration reads it. */
+export const LEGACY_INTERVAL_MS = { min: 500, max: 20000, default: 4000 };
 
 /**
  * @param {{ min: number, max: number, default: number }} range
@@ -32,11 +46,27 @@ export function clampDuration(value) {
 }
 
 /**
- * Always returns a usable auto-advance interval (ms), whatever it's given.
+ * Always returns a usable hold (ms), whatever it's given.
  * @param {unknown} value
  */
-export function clampInterval(value) {
-  return clampTo(TIME.intervalMs, value);
+export function clampHold(value) {
+  return clampTo(TIME.holdMs, value);
+}
+
+/**
+ * Pre-Stage 6 intervals (config version 3), clamped as they were.
+ * @param {unknown} value
+ */
+export function clampLegacyInterval(value) {
+  return clampTo(LEGACY_INTERVAL_MS, value);
+}
+
+/**
+ * The time from one change starting to the next: the transition plus the hold.
+ * @param {{ durationMs: number, holdMs: number }} time
+ */
+export function cycleMs(time) {
+  return time.durationMs + time.holdMs;
 }
 
 // --- per-shape settings ------------------------------------------
@@ -79,8 +109,12 @@ export const LOCK_LIMITS = {
 export const BOUNDS = { x: 1.9, y: 1.4, z: 1.5 };
 
 export const COLLISION = {
-  margin: 0.18,      // minimum gap left between resolved shapes
-  maxIterations: 8   // per-shape resolve attempts before giving up
+  margin: 0.18,      // minimum gap left between resolved shapes (both solvers)
+  maxIterations: 8,  // legacy solver: per-shape resolve attempts before giving up
+  // the volume solver (composition strategies; generator/strategies/volumeSolver.js):
+  maxPasses: 24,     // blocking shapes one sweep may jump over before it gives up (a shape that cannot get clear is reported unresolved)
+  maxShift: 6,       // the farthest a shape may be slid along the view axis from the depth its strategy planned
+  orderSlack: 3      // extra distance a shape will slide to stay on its planned side (in front / behind) of another
 };
 
 // --- camera / stage ------------------------------------------------
@@ -106,13 +140,14 @@ export const ORIENTATIONS = {
   square: { w: 640, h: 640 }
 };
 
-// Opacity of the DOM paper-grain overlay. Applied from JS (SceneManager)
-// and reused by the PNG exporter, so on-screen and exported images match.
-export const OVERLAY_OPACITY = 0.5;
-
-// Longest single frame the animation loop will integrate, so a tab
-// returning from the background doesn't fast-forward every tween.
+// What the animation clock advances by on a suspended frame (see STALL_MS).
 export const MAX_FRAME_MS = 100;
+// A frame this long (or longer) is not a slow frame but a suspension: a hidden
+// tab, a debugger, a laptop lid. The animation clock then advances by
+// MAX_FRAME_MS only, so everything resumes exactly where it left off. Shorter
+// frames count in full (core/frameClock.js), so the timing keeps real time on a
+// slow machine instead of stretching with the frame rate.
+export const STALL_MS = 1000;
 
 // --- visual dynamics ------------------------------------------------
 // Timing for the shared event clock (core/Rhythm.js), and the constants of
@@ -121,7 +156,54 @@ export const MAX_FRAME_MS = 100;
 // tied to specific milliseconds. Tuning knobs, not user settings: the
 // material lab (lab/labSettings.js) edits them live and "Copy defaults"
 // prints the values to paste back here.
+// How each kind of shape moves within a transition window (Stage 6.2), as shares of the window. Every profile starts within the
+// first `maxStart` of the window and is over by its end, so the shapes overlap heavily and read as one movement; what differs is
+// WHEN each starts, how much of the window it takes and how sharply it eases: anchors start first and drift slowly with a gentle
+// ease, details start last and travel quickly with a crisp one. `delay` and `span` are [min, max] ranges drawn per shape from the seed.
+// Colour and material (Stage 6.3) have timelines of their own, independent of the geometry's, also as shares of the window and each
+// over by its end: `color` is the new colour's sweep and the tone with it, `material` the highlight, the shadow's colour and the
+// hatching. They run the other way round to the geometry: anchors, which move first, recolour last; details recolour first.
+export const MOTION_PROFILES = {
+  maxStart: 0.25,
+  anchor: {
+    delay: [0, 0.04], span: [0.88, 1], ease: 'sine',
+    color: { delay: [0.3, 0.42], span: [0.5, 0.58], ease: 'sine' },        // anchors recolour LATE ...
+    material: { delay: [0.2, 0.32], span: [0.55, 0.65], ease: 'sine' }
+  },
+  support: {
+    delay: [0.02, 0.12], span: [0.62, 0.85], ease: 'cubic',
+    color: { delay: [0.18, 0.3], span: [0.45, 0.6], ease: 'cubic' },
+    material: { delay: [0.12, 0.22], span: [0.5, 0.62], ease: 'cubic' }
+  },
+  connector: {
+    delay: [0.05, 0.16], span: [0.55, 0.8], ease: 'cubic',
+    color: { delay: [0.12, 0.24], span: [0.4, 0.55], ease: 'cubic' },
+    material: { delay: [0.08, 0.18], span: [0.45, 0.58], ease: 'cubic' }
+  },
+  accent: {
+    delay: [0.1, 0.22], span: [0.42, 0.68], ease: 'quart',
+    color: { delay: [0.04, 0.14], span: [0.35, 0.5], ease: 'cubic' },
+    material: { delay: [0.06, 0.16], span: [0.4, 0.52], ease: 'cubic' }
+  },
+  detail: {
+    delay: [0.12, 0.25], span: [0.35, 0.6], ease: 'quart',
+    color: { delay: [0, 0.08], span: [0.3, 0.45], ease: 'cubic' },          // ... details EARLY, before they have moved much
+    material: { delay: [0.04, 0.12], span: [0.35, 0.48], ease: 'cubic' }
+  },
+  // a legacy shape has no role: it moves like a support
+  other: {
+    delay: [0.02, 0.12], span: [0.62, 0.85], ease: 'cubic',
+    color: { delay: [0.18, 0.3], span: [0.45, 0.6], ease: 'cubic' },
+    material: { delay: [0.12, 0.22], span: [0.5, 0.62], ease: 'cubic' }
+  }
+};
+
 export const DYNAMICS = {
+  // per-object motion (core/schedule.js)
+  motion: {
+    stagger: 1,  // 0 = every shape moves over the whole transition with one easing (the motion before Stage 6.2), 1 = the full role profiles
+    paperFade: true  // the paper (ground, edge tint, hatching) fades over a transition when the palette changes; false = in one frame, as before 7.6
+  },
   envelope: {
     attack: 0.35,              // energy rises over this many durations ...
     release: 1.8,              // ... and falls over this many (a slow settle) ...
@@ -171,6 +253,29 @@ export const DYNAMICS = {
   // The ground: the paper/canvas texture behind the shapes (texture/GroundLayer.js).
   // Procedural and fixed in the picture's own coordinates, so it is the same
   // for every composition, every palette and every export size.
+  // The edge character of box-like faces (texture/edge.js, PigmentResponse.js). Where a face meets its edge the paint is a little
+  // thinner (the paper tooth shows through, broken up by the grain) and, a little further in, a little thicker (it pools). Widths
+  // are world units (6 units are the canvas height); strengths are mixes 0..1. Strategies only; legacy keeps flat edges.
+  edge: {
+    width: 0.03,     // the band, from the edge inward
+    thinning: 0.18,  // how far the colour goes toward the paper at the very edge, where the grain lets it
+    pooling: 0.06    // how much darker the ridge just inside the band is
+  },
+  // Hatching (texture/hatch.js): graphite-style parallel lines on the Mass backdrop (when dark) and about half the shadow planes.
+  // Spacing is a world length (6 units are the canvas height), the width a fraction of the spacing, light / dark the share a line
+  // goes toward the ink (on a light or mid surface) or toward the paper (on a dark one), wobble a fraction of the spacing, breaks
+  // the noise level under which a line has a gap, shadowShare the share of shadow planes that are hatched.
+  hatch: { spacing: 0.06, width: 0.3, light: 0.13, dark: 0.10, wobble: 0.2, breaks: 0.22, shadowShare: 0.5 },
+  // The silhouette (stage 5.3): where a form's outline meets the paper, a narrow soft edge and a slight irregularity, as alpha
+  // (blended; alpha to coverage drew bright fringes in the software renderer the checks run in). World lengths; irregularity only ever erodes (the outline cannot grow).
+  silhouette: { softness: 0.008, irregularity: 0.006, slowFreq: 2.9, fineFreq: 18 },
+  // The materials' response to the shared event clock (core/Rhythm.js, stage 5.4): while a composition changes, Rhythm's energy rises
+  // and settles, and the edge band, the silhouette softness and the paint's tooth follow it by these fractions of their value at
+  // peak energy (0.4 = up to 40% more). At rest energy is 0, so a still is exactly what it was. Strategies only.
+  response: { edge: 0.4, softness: 0.4, tooth: 0.15 },
+  // the grain that breaks the thinned edge up (compiled in): noise frequency per world unit, and how much of the thinning
+  // is there where the grain is lowest
+  edgeGrain: { scale: 160, floor: 0.35 },
   ground: {
     visibility: 0.022, // luminance variation of the ground (std / mean); references: paper sheet ~0.005-0.01, painted grounds ~0.02-0.06
     scale: 0.5,       // patch size multiplier

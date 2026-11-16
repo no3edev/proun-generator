@@ -45,10 +45,10 @@ function coverage(L) {
 }
 
 describe('central cluster: selection and reproducibility', () => {
-  it('is a selectable strategy, last in the list', () => {
+  it('is a selectable strategy, the third of the original three', () => {
     expect(STRATEGY_NAMES).toContain('central-cluster');
     expect(STRATEGY_LABELS['central-cluster']).toBe('Central cluster');
-    expect(STRATEGY_NAMES[STRATEGY_NAMES.length - 1]).toBe('central-cluster');
+    expect(STRATEGY_NAMES.indexOf('central-cluster')).toBe(3); // after legacy, axis-thrust, disc-beams (the assembly strategies follow)
   });
 
   it('same seed -> same composition; different seed -> different; independent of `visible`; unlike the other strategies', () => {
@@ -134,17 +134,58 @@ describe('central cluster: structure', () => {
     });
   });
 
-  it('puts a small second cluster against the bottom edge, and the hairline on the other side', () => {
+  it('puts a small second cluster against the bottom edge; a hairline, when there is one, stands on the other side', () => {
     SEEDS.forEach((seed) => {
       const L = layoutOf(ccCfg(seed, each(1, { rod: 1 })));
       const edge = L.filter((e) => e.role === 'support' && screenOf(e)[1] <= -0.5 * FRAME.halfH);
       expect(edge, `seed ${seed}`).toHaveLength(2);
       const side = Math.sign(screenOf(edge[0])[0]);
       expect(Math.abs(screenOf(edge[0])[0])).toBeGreaterThanOrEqual(0.3 * FRAME.halfW);
-      const hairline = L.filter((e) => e.type === 'rod').sort((a, b) => b.scale[1] - a.scale[1])[0];
-      expect(Math.sign(screenOf(hairline)[0])).toBe(-side);
-      expect(Math.abs(screenOf(hairline)[0])).toBeGreaterThanOrEqual(0.75 * FRAME.halfW);
+      L.filter((e) => e.type === 'rod' && e.scale[1] > e.scale[0]).forEach((line) => {
+        expect(Math.sign(screenOf(line)[0])).toBe(-side);
+        // 0.78 of the half-width, less the 0.06-high step inward of a pair's second line
+        expect(Math.abs(screenOf(line)[0])).toBeGreaterThanOrEqual(0.78 * FRAME.halfW - 0.06 * 6 - 1e-6);
+      });
     });
+  });
+
+  it('the edge details vary from scene to scene (no one fixed sign): several patterns, and sometimes none', () => {
+    const sig = (L) => {
+      const rods = L.filter((e) => e.type === 'rod');
+      return `${rods.filter((e) => e.scale[1] > e.scale[0]).length}v${rods.filter((e) => e.scale[1] <= e.scale[0]).length}h`;
+    };
+    const seen = new Set(SEEDS.map((seed) => sig(layoutOf(ccCfg(seed, each(1, { rod: 1 }))))));
+    expect(seen.size).toBeGreaterThanOrEqual(4);
+    expect(seen.has('0v0h')).toBe(true); // a scene with no hairline at all
+    expect(seen.has('1v0h')).toBe(true); // a plain line
+    expect([...seen].some((x) => x.startsWith('1v') && !x.endsWith('0h'))).toBe(true); // a line with a tick or two
+  });
+
+  it('two ticks on one line are on opposite sides of it, never both on one side (that reads as the letter F)', () => {
+    let checked = 0;
+    SEEDS.forEach((seed) => {
+      const rods = layoutOf(ccCfg(seed, each(1, { rod: 1 }))).filter((e) => e.type === 'rod');
+      const lines = rods.filter((e) => e.scale[1] > e.scale[0]);
+      const ticks = rods.filter((e) => e.scale[1] <= e.scale[0]);
+      if (lines.length !== 1 || ticks.length !== 2) return;
+      checked++;
+      const lx = screenOf(lines[0])[0];
+      expect(Math.sign(screenOf(ticks[0])[0] - lx)).toBe(-Math.sign(screenOf(ticks[1])[0] - lx));
+    });
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it('fits the frame in every orientation: the plate, slab and bar are not cropped away in a portrait or square one', () => {
+    for (const [orientation, halfW] of [['portrait', 3 * (560 / 720)], ['square', 3], ['landscape', 3 * (720 / 560)]]) {
+      SEEDS.forEach((seed) => {
+        const L = layoutOf(ccCfg(seed, each(1), {}, { orientation }));
+        const cluster = L.filter((e) => e.role === 'anchor' || e.role === 'connector' || (e.role === 'support' && screenOf(e)[1] > -0.5 * FRAME.halfH));
+        cluster.forEach((e) => {
+          const [x] = screenOf(e), f = footprint(e);
+          expect(Math.abs(x) + f.w / 2, `${orientation} seed ${seed} ${e.role}`).toBeLessThanOrEqual(halfW * 1.02);
+        });
+      });
+    }
   });
 
   it('is mostly ground: the boxes\' bounding boxes cover under 55% of the frame in every scene, under 40% on average', () => {

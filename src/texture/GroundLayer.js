@@ -18,7 +18,17 @@ import { hashSeed, mulberry32 } from '../generator/rng.js';
 // its visibility adds texture without shifting the overall tone.
 //
 // The layer is a quad in clip space, so it covers the viewport at any size
-// and ignores the camera; it writes no depth. The render path is unchanged.
+// and ignores the camera; it writes no depth.
+//
+// THE CACHE (v0.14.1). The ground shader is heavy (4-octave fbm, a Worley
+// crack pass, twice during a morph) and used to run over every pixel on every
+// frame, even at rest, when nothing about it changes. Now it is drawn into a
+// render target of the drawing buffer's size only when one of its inputs has
+// changed (a uniform, the size: a morph, a lab edit, a palette change, a
+// resize, an export scale), and the scene draws a trivial copy of that target
+// in its place (texelFetch at the pixel: 1:1, no filtering). The picture is
+// the same: the target holds the same sRGB bytes the shader would have written
+// to the canvas. At rest the cost of the ground is one texture copy.
 
 const uniforms = {
   uPaper: { value: new THREE.Color('#ffffff') },
@@ -37,7 +47,10 @@ const uniforms = {
   uEvolve: { value: DYNAMICS.groundMotion.evolve },
   uWarp: { value: DYNAMICS.groundMotion.warp },
   uLift: { value: DYNAMICS.groundMotion.lift },
-  uSeed: { value: new THREE.Vector2(DYNAMICS.ground.seed, DYNAMICS.ground.seed * 1.7) }
+  uSeed: { value: new THREE.Vector2(DYNAMICS.ground.seed, DYNAMICS.ground.seed * 1.7) },
+  // the part of the picture being drawn: offset (x, y) and size (z, w) in uv; the whole picture, except while a big export is
+  // rendered in tiles (export/hiRes.js)
+  uTile: { value: new THREE.Vector4(0, 0, 1, 1) }
 };
 
 const VERTEX = `
@@ -45,6 +58,15 @@ varying vec2 vUv;
 void main() {
   vUv = uv;
   gl_Position = vec4( position.xy, 0.0, 1.0 );
+}
+`;
+
+// the cached ground drawn into the scene: one texel per pixel, converted to the output color space like every other material
+export const BLIT_FRAGMENT = `
+uniform sampler2D uMap;
+void main() {
+  gl_FragColor = texelFetch( uMap, ivec2( gl_FragCoord.xy ), 0 );
+  #include <colorspace_fragment>
 }
 `;
 
@@ -59,6 +81,7 @@ uniform float uCrackScale;
 uniform float uCrackStretch;
 uniform float uCrackVary;
 uniform vec2 uSeed;
+uniform vec4 uTile;
 uniform float uMotion;
 uniform float uPhase;
 uniform float uMorph;
@@ -102,7 +125,8 @@ vec2 warpAt( vec2 p, float k ) {
 
 void main() {
   // the picture's own coordinates (height = 1), plus the fixed seed
-  vec2 p = vec2( vUv.x * uAspect, vUv.y ) + uSeed;
+  vec2 uvAll = uTile.xy + vUv * uTile.zw;
+  vec2 p = vec2( uvAll.x * uAspect, uvAll.y ) + uSeed;
   // the ground's own motion (uMotion is 0 at rest and the code is skipped):
   // the patches deform (the field is sampled through a gentle warp) and
   // condense (soft clouds sharpen toward defined blotches at the same
@@ -158,7 +182,49 @@ void main() {
 /** Normalizing weights: mottle and speckle contributions, tuned so `visibility` reads as std/mean. */
 export const GROUND_WEIGHTS = { mottle: 7.0, fine: 3.0 };
 
-let mesh = null;
+let mesh = null;          // the real ground shader (drawn into the cache, never into the scene)
+let groundScene = null;   // holds `mesh`, rendered into `cache`
+let blit = null;          // what the scene draws: a copy of the cache
+let cache = /** @type {THREE.WebGLRenderTarget | null} */ (null);
+let groundOn = true;
+const cameraStub = new THREE.Camera();
+const sizeScratch = new THREE.Vector2();
+
+/** How often the ground shader has been drawn (browser checks and tests read it). */
+export const groundCacheStats = { draws: 0 };
+
+/**
+ * Tells whether a list of numbers differs from the last one it was given (and remembers the new one).
+ * The ground's inputs are all numbers (uniforms, the size), so "no change" means the cached picture is still right.
+ */
+export function createChangeDetector() {
+  /** @type {number[] | null} */
+  let last = null;
+  return {
+    /** @param {number[]} now */
+    changed(now) {
+      const same = last !== null && last.length === now.length && last.every((v, i) => v === now[i]);
+      if (!same) last = now.slice();
+      return !same;
+    },
+    forget() { last = null; }
+  };
+}
+const detector = createChangeDetector();
+
+/** Every number the ground's picture depends on, in a fixed order. */
+export function groundSignature() {
+  /** @type {number[]} */
+  const out = [];
+  Object.keys(uniforms).sort().forEach((k) => {
+    const v = /** @type {any} */ (uniforms)[k].value;
+    if (typeof v === 'number') out.push(v);
+    else if (v.isColor) out.push(v.r, v.g, v.b);
+    else if (typeof v.z === 'number') out.push(v.x, v.y, v.z, v.w);
+    else out.push(v.x, v.y);
+  });
+  return out;
+}
 
 /** Adds the ground to `scene`; drawn before everything else. */
 export function initGround(/** @type {THREE.Scene} */ scene) {
@@ -173,8 +239,75 @@ export function initGround(/** @type {THREE.Scene} */ scene) {
   });
   mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
   mesh.frustumCulled = false;
-  mesh.renderOrder = -1000;
-  scene.add(mesh);
+  groundScene = new THREE.Scene();
+  groundScene.add(mesh);
+
+  blit = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+    uniforms: { uMap: { value: null } },
+    vertexShader: VERTEX,
+    fragmentShader: BLIT_FRAGMENT,
+    depthTest: false,
+    depthWrite: false
+  }));
+  blit.frustumCulled = false;
+  blit.renderOrder = -1000;
+  blit.visible = groundOn;
+  scene.add(blit);
+}
+
+/**
+ * Brings the cached ground up to date: draws the ground shader into the render target if anything it depends on has
+ * changed since the last draw (or the target had to be resized), otherwise does nothing. Call before every
+ * renderer.render of the scene (the loop and the export both do).
+ * @param {THREE.WebGLRenderer} renderer
+ * @returns {boolean} whether the ground was drawn
+ */
+export function updateGroundCache(renderer) {
+  if (!mesh || !groundScene || !blit || !groundOn) return false;
+  renderer.getDrawingBufferSize(sizeScratch);
+  const w = Math.max(1, Math.floor(sizeScratch.x));
+  const h = Math.max(1, Math.floor(sizeScratch.y));
+  let resized = false;
+  if (!cache) {
+    cache = new THREE.WebGLRenderTarget(w, h, {
+      depthBuffer: false,
+      generateMipmaps: false,
+      minFilter: THREE.NearestFilter,
+      magFilter: THREE.NearestFilter
+    });
+    // sRGB-encoded 8-bit, like the canvas: written encoded, read back decoded, then encoded again by the copy: the same bytes
+    cache.texture.colorSpace = THREE.SRGBColorSpace;
+    /** @type {any} */ (blit.material).uniforms.uMap.value = cache.texture;
+    resized = true;
+  } else if (cache.width !== w || cache.height !== h) {
+    cache.setSize(w, h);
+    resized = true;
+  }
+  const changed = detector.changed([w, h, ...groundSignature()]);
+  if (!changed && !resized) return false;
+  const prevTarget = renderer.getRenderTarget();
+  renderer.setRenderTarget(cache);
+  renderer.render(groundScene, cameraStub);
+  renderer.setRenderTarget(prevTarget);
+  groundCacheStats.draws += 1;
+  return true;
+}
+
+/**
+ * Makes the next updateGroundCache draw the ground again whatever the signature says. After a lost WebGL context the cache's
+ * texture comes back EMPTY (black) while the numbers it depends on are unchanged, so without this the paper never returned.
+ */
+export function invalidateGroundCache() {
+  detector.forget();
+}
+
+/**
+ * Draws the ground for one tile of a big export (export/hiRes.js groundTileUv): offset and size in uv, null for the whole picture.
+ * @param {{ ox: number, oy: number, sx: number, sy: number } | null} tile
+ */
+export function setGroundTile(tile) {
+  if (tile) uniforms.uTile.value.set(tile.ox, tile.oy, tile.sx, tile.sy);
+  else uniforms.uTile.value.set(0, 0, 1, 1);
 }
 
 /** The paper the ground varies around (the active palette's). */
@@ -198,7 +331,9 @@ export function setGroundParams(p) {
   uniforms.uCrackScale.value = p.crackScale;
   uniforms.uCrackStretch.value = p.crackStretch;
   uniforms.uCrackVary.value = p.crackVary;
-  if (mesh) mesh.visible = p.on;
+  groundOn = p.on;
+  if (blit) blit.visible = p.on;
+  if (!p.on) detector.forget(); // switched back on: draw again whatever the signature says
 }
 
 /**

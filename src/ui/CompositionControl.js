@@ -1,5 +1,6 @@
 import { SceneConfig } from '../config/store.js';
-import { STRATEGY_NAMES, STRATEGY_LABELS } from '../generator/strategies/index.js';
+import { STRATEGY_NAMES, STRATEGY_LABELS, STRATEGY_USES } from '../generator/strategies/index.js';
+import { showShapeTabsFor } from './ShapeTabs.js';
 
 // The composition-strategy selector, in the Scene tab beside Orientation and
 // Palette. It is part of the scene (saved in presets, links and history): the
@@ -33,6 +34,8 @@ export function initCompositionControl() {
     if (hint) hint.textContent = HINTS[strategy] || HINTS.default;
     // lets the shape tabs say that counts are the strategy's (see panel.css)
     document.body.dataset.strategy = strategy;
+    // and the shapes menu offers only the shapes this strategy places
+    showShapeTabsFor(STRATEGY_USES[strategy] || null);
   }
   sync();
   SceneConfig.subscribe(sync);

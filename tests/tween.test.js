@@ -72,3 +72,93 @@ describe('Tween pause and scrub', () => {
     Rhythm.setHold(null, 1000);
   });
 });
+
+describe('Tween onComplete', () => {
+  beforeEach(() => Rhythm.reset());
+
+  it('is called once, when the tween reaches its end, and not before', () => {
+    const m = mesh();
+    let calls = 0;
+    Tween.add(m, target(10), 1000, () => { calls++; });
+    Tween.update(400);
+    expect(calls).toBe(0);
+    Tween.update(700);
+    expect(calls).toBe(1);
+    expect(m.position.x).toBe(10);
+    Tween.update(500);
+    expect(calls).toBe(1);
+  });
+
+  it('is not called when another tween takes over the mesh, or when the mesh is removed', () => {
+    const a = mesh(), b = mesh();
+    let calls = 0;
+    Tween.add(a, target(10), 1000, () => { calls++; });
+    Tween.update(300);
+    Tween.add(a, target(20), 1000);          // takes over: the first one is canceled, not completed
+    Tween.update(2000);
+    Tween.add(b, target(10), 1000, () => { calls++; });
+    Tween.removeForMesh(b);
+    Tween.update(2000);
+    expect(calls).toBe(0);
+  });
+
+  it('is not called while the lab\'s pause holds the change, and is called once it is released and runs out', () => {
+    const m = mesh();
+    let calls = 0;
+    Tween.add(m, target(10), 1000, () => { calls++; });
+    Rhythm.setHold(0.5, 1000);
+    Tween.update(16);
+    Tween.update(5000);
+    expect(calls).toBe(0);
+    Rhythm.setHold(null, 1000);
+    Tween.update(16);
+    Tween.update(1500);
+    expect(calls).toBe(1);
+    expect(m.position.x).toBe(10);
+  });
+
+  it('a mesh that shrinks away ends at its tiny scale, ready to be disposed by the callback', () => {
+    const m = mesh();
+    const done = [];
+    Tween.add(m, { position: m.position.clone(), rotation: { x: 0, y: 0, z: 0 }, scale: new THREE.Vector3(0.001, 0.001, 0.001), hex: '#000000' }, 500, () => done.push(m.scale.x));
+    Tween.update(600);
+    expect(done).toEqual([0.001]);
+  });
+});
+
+describe('Tween.finishWithin: a shorter way for what is already on its way', () => {
+  beforeEach(() => Rhythm.reset());
+
+  it('does not move the mesh when it is called, then lands exactly on the target after the new time, completing once', () => {
+    const m = mesh();
+    const done = [];
+    Tween.add(m, target(10), 60_000, () => done.push(1));
+    Tween.update(15_000);
+    const x = m.position.x;
+    expect(Tween.finishWithin(m, 1000)).toBe(true);
+    Tween.update(0);
+    expect(m.position.x).toBeCloseTo(x, 9);          // same place: no jump, no restart of the easing
+    Tween.update(999);
+    expect(m.position.x).toBeLessThan(10);
+    expect(done).toEqual([]);
+    Tween.update(2);
+    expect(m.position.x).toBe(10);
+    expect(done).toEqual([1]);
+  });
+
+  it('is a no-op when less than the new time is left, when nothing runs, and for a time that makes no sense', () => {
+    const m = mesh();
+    Tween.add(m, target(10), 1000);
+    Tween.update(900);
+    expect(Tween.finishWithin(m, 500)).toBe(false);  // 100 ms left already
+    Tween.update(99);
+    expect(m.position.x).toBeLessThan(10);
+    Tween.update(2);
+    expect(m.position.x).toBe(10);
+    expect(Tween.finishWithin(m, 500)).toBe(false);  // finished: nothing to shorten
+    expect(Tween.finishWithin(mesh(), 500)).toBe(false);
+    const n = mesh();
+    Tween.add(n, target(5), 60_000);
+    for (const bad of [0, -1, NaN]) expect(Tween.finishWithin(n, bad)).toBe(false);
+  });
+});

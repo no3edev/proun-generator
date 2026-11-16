@@ -8,7 +8,7 @@ import { buildPresetsPanel } from './PresetsPanel.js';
 import { wireAccordionToggle } from './accordion.js';
 import { copyText } from './clipboard.js';
 import { buildShareUrl } from '../config/share.js';
-import { TIME, clampDuration, clampInterval } from '../config/defaults.js';
+import { TIME, TIMING_PRESETS, clampDuration, clampHold } from '../config/defaults.js';
 
 // The panel is a view of the SceneConfig: controls write to it (update())
 // and are repainted from it (syncControls) whenever it changes — including
@@ -40,28 +40,39 @@ export function initPanel() {
   );
 
   // limits come from config/defaults.js (not index.html), and typed values
-  // are clamped by the config — HTML min/max aren't enforced on read
-  function configureNumberInput(input, range) {
-    input.min = String(range.min);
-    input.max = String(range.max);
-    input.step = String(range.step);
+  // are clamped by the config — HTML min/max aren't enforced on read.
+  // The config keeps milliseconds; the fields show seconds.
+  function configureSecondsInput(input, range) {
+    input.min = String(range.min / 1000);
+    input.max = String(range.max / 1000);
+    input.step = String(range.step / 1000);
   }
   const durationInput = document.getElementById('duration-input');
-  const intervalInput = document.getElementById('interval-input');
+  const holdInput = document.getElementById('hold-input');
+  const timingSelect = document.getElementById('timing-select');
   const autoToggle = document.getElementById('auto-toggle');
-  configureNumberInput(durationInput, TIME.durationMs);
-  configureNumberInput(intervalInput, TIME.intervalMs);
+  configureSecondsInput(durationInput, TIME.durationMs);
+  configureSecondsInput(holdInput, TIME.holdMs);
 
   durationInput.addEventListener('change', () => {
-    SceneConfig.update({ time: { durationMs: clampDuration(durationInput.value) } });
+    SceneConfig.update({ time: { durationMs: clampDuration(Number(durationInput.value) * 1000) } });
     syncControls(SceneConfig.get()); // reflect clamping even if nothing changed
   });
-  intervalInput.addEventListener('change', () => {
-    SceneConfig.update({ time: { intervalMs: clampInterval(intervalInput.value) } });
+  holdInput.addEventListener('change', () => {
+    SceneConfig.update({ time: { holdMs: clampHold(Number(holdInput.value) * 1000) } });
+    syncControls(SceneConfig.get());
+  });
+  timingSelect.addEventListener('change', () => {
+    const preset = TIMING_PRESETS[timingSelect.value];
+    if (preset) SceneConfig.update({ time: { durationMs: preset.durationMs, holdMs: preset.holdMs } });
     syncControls(SceneConfig.get());
   });
   autoToggle.addEventListener('change', () => {
     SceneConfig.update({ time: { autoAdvance: autoToggle.checked } });
+  });
+  const playlistToggle = document.getElementById('playlist-toggle');
+  playlistToggle.addEventListener('change', () => {
+    SceneConfig.update({ time: { playlist: playlistToggle.checked } });
   });
 
   document.getElementById('advance-btn').addEventListener('click', () => Composition.advance());
@@ -82,9 +93,12 @@ export function initPanel() {
   function syncControls(config) {
     paletteSelect.value = config.palette;
     orientationSelect.value = config.orientation;
-    durationInput.value = String(config.time.durationMs);
-    intervalInput.value = String(config.time.intervalMs);
+    durationInput.value = String(config.time.durationMs / 1000);
+    holdInput.value = String(config.time.holdMs / 1000);
+    const named = Object.keys(TIMING_PRESETS).find((k) => TIMING_PRESETS[k].durationMs === config.time.durationMs && TIMING_PRESETS[k].holdMs === config.time.holdMs);
+    timingSelect.value = named || 'custom';
     autoToggle.checked = config.time.autoAdvance;
+    playlistToggle.checked = config.time.playlist;
   }
   syncControls(SceneConfig.get());
 
@@ -103,7 +117,7 @@ export function initPanel() {
     // Skip pure re-rolls (a new seed, e.g. every auto-advance tick):
     // nothing shown here changed, and repainting would overwrite a number
     // field the user is in the middle of typing into.
-    const shown = (c) => [c.palette, c.orientation, c.time.durationMs, c.time.intervalMs, c.time.autoAdvance].join('|');
+    const shown = (c) => [c.palette, c.orientation, c.time.durationMs, c.time.holdMs, c.time.autoAdvance, c.time.playlist].join('|');
     if (meta.replaced || shown(next) !== shown(prev)) syncControls(next);
     if (meta.replaced) {
       shapeContainer.innerHTML = '';
@@ -128,14 +142,25 @@ export function initPanel() {
   // capped to what the GPU can render
   const exportBtn = document.getElementById('export-png-btn');
   const exportScale = document.getElementById('export-scale');
+  const exportSizeRow = document.getElementById('export-size-row');
+  const exportSize = document.getElementById('export-size');
+  exportScale.addEventListener('change', () => { exportSizeRow.hidden = exportScale.value !== 'custom'; });
   const exportLabel = exportBtn.textContent;
   let exportTimer = null;
   exportBtn.addEventListener('click', async () => {
     exportBtn.disabled = true;
     let text;
     try {
-      const r = await exportPNG(SceneManager, { scale: Number(exportScale.value), seed: SceneConfig.get().seed });
-      text = `Saved ${r.width}×${r.height}${r.limited ? ' (capped)' : ''}`;
+      const custom = exportScale.value === 'custom';
+      if (custom) {
+        // a big picture is rendered in one go, and the page cannot repaint meanwhile: say so first
+        exportBtn.textContent = 'Rendering…';
+        await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+      }
+      const r = await exportPNG(SceneManager, custom
+        ? { size: Number(exportSize.value), seed: SceneConfig.get().seed }
+        : { scale: Number(exportScale.value), seed: SceneConfig.get().seed });
+      text = `Saved ${r.width}×${r.height}${r.tiled ? ' (tiled)' : ''}${r.limited ? ' (capped)' : ''}`;
     } catch (err) {
       text = 'Export failed';
     }

@@ -6,8 +6,9 @@ triangle…) are placed, colored, and periodically re-randomized within a
 palette, easing between compositions with a lightweight tween engine and a
 depth-based collision resolver so shapes never truly intersect in 3D.
 
-> **Continuing the project?** Read [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) first: what was built in the
-> visual-dynamics stage and why, what was verified, the open items, and how the work is done.
+> **Continuing the project?** Read [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) first: the roadmap status (Stages 0-4 are done, plus palettes, a Library of presets and the Tower / Cross / Mass strategies; Stage 5,
+> procedural analog materials and edge treatment, is next; the roadmap is `docs/prompt.md`), the architecture of the generative system, the decision log, how things are verified, the open items, and
+> how the work is done. The earlier visual-dynamics handoff is its Appendix A.
 > [`tools/verify/`](tools/verify/README.md) holds the headless-browser verification harness.
 
 ## Setup
@@ -38,8 +39,8 @@ src/
 ├── config/
 │   ├── defaults.js        every tunable constant and limit in one place:
 │   │                      time ranges/defaults, per-shape limits, scene
-│   │                      bounds, collision margin, camera, orientations,
-│   │                      overlay opacity; plus clampDuration/clampInterval;
+│   │                      bounds, collision margin, camera, orientations;
+│   │                      plus clampDuration/clampHold, TIMING_PRESETS;
 │   │                      and DYNAMICS: the visual-dynamics constants
 │   ├── SceneConfig.js     the scene's single source of truth: one small
 │   │                      serializable object + update/replace/subscribe,
@@ -54,7 +55,8 @@ src/
 │   ├── rng.js             seeded PRNG (mulberry32) + hashing; randomSeed()
 │   │                      is the app's only source of real entropy
 │   ├── generate.js        PURE: (config, palette, shapes, camera) -> Layout[]
-│   └── CollisionResolver.js   generic AABB + depth-axis push, shape-agnostic
+│   └── CollisionResolver.js   generic AABB + depth-axis push, shape-agnostic (the LEGACY generator's solver)
+│   (strategies/volumeSolver.js: the real-volume depth solver the composition strategies use)
 ├── core/
 │   ├── SceneManager.js    renderer, camera, resize, render loop; follows the
 │   │                      config's orientation/palette
@@ -66,7 +68,17 @@ src/
 │   │                      the lab can pause and scrub it
 │   ├── Composition.js     the scene view: keeps meshes in step with the
 │   │                      config (add/remove/dispose, visibility, re-layout)
-│   └── AutoAdvance.js     the one timer: advances every time.intervalMs
+│   ├── schedule.js        per-object motion: delay, span and easing from the seed and the role
+│   ├── frameClock.js      the animation clock: frameDt(raw ms) -> dt for everything
+│   ├── AutoAdvance.js     the hold timer on that clock: a change every transition + hold
+│   │                      (a new random composition, or the next Library preset)
+│   ├── Playlist.js        the curated sequence's order: shuffled, no repeat before all
+│   ├── PaperFade.js       the paper and hatching ink fade over a palette change
+│   ├── ExhibitionMode.js  interface hidden, fullscreen, idle cursor, wake lock
+│   ├── exhibitionParams.js ?exhibition, &auto, &playlist
+│   ├── stageFit.js        the stage's size (normal and exhibition) and the pixel budget
+│   ├── contextRecovery.js lost / restored WebGL context handling
+│   └── watchdog.js        error-storm and scheduled page reload (session saved first)
 ├── shapes/
 │   ├── registry.js        the list every shape must be added to
 │   ├── cubeFixed.js
@@ -83,7 +95,7 @@ src/
 │   │                      shapes (mottle, speckle, cracks) and its one-way morph
 │   ├── noiseGLSL.js       shared GLSL hash / value noise / fbm
 │   ├── paintSeed.js       the deterministic per-slot seed of a shape's paint
-│   ├── PaperTexture.js    the paper-grain overlay sheet (cached, tinted per palette)
+│   ├── PaperTexture.js    the paper-grain sheet (cached; only the legacy pigment pool uses it)
 │   ├── PigmentLayer.js    legacy: pool of grayscale pigment canvases (used when
 │   │                      the lab's "Procedural paint" is off)
 │   ├── MicroVariation.js  subtle final jitter for the canvas textures
@@ -98,12 +110,14 @@ src/
 │   ├── palettes.js        palette data — edit here to add a palette
 │   └── Palette.js         palette lookup; the active one comes from the config
 ├── presets/
+│   ├── applyPreset.js     loading a preset = a composition; the viewer's timing stays
+│   ├── library.js         the Library's 11 curated presets (built by tools/presets)
 │   └── PresetStore.js     localStorage-backed save/load/import/export of
 │                          stored SceneConfigs, newest-first, capped at
 │                          MAX_PRESETS (20)
 ├── export/
-│   ├── PngExporter.js     canvas + overlay compositing -> PNG download
-│   └── hiRes.js           1x/2x/4x export: render at a higher pixel ratio, restore
+│   ├── PngExporter.js     canvas copy -> PNG download
+│   └── hiRes.js           1x/2x/4x export, custom size and tiled rendering above the single-pass limits
 └── ui/
     ├── Panel.js           panel wiring: Orientation/Palette, the Time
     │                      accordion, shape tabs, Presets, action buttons
@@ -129,12 +143,20 @@ src/
 tests/                     Vitest unit tests (see "Tests" below)
 src/generator/strategies/  composition strategies (index.js registry, run.js runner, common.js, axisThrust.js)
 src/ui/CompositionControl.js the composition-strategy selector, on the Scene tab
+src/ui/DiagnosticsPanel.js the read-only Layout diagnostics readout, at the bottom of the Scene tab
+src/generator/volumes.js   real shape volumes (oriented boxes, balls): intersection and silhouette tests
+src/generator/diagnostics.js  diagnoseLayout(): what a layout does (pure, read-only)
 tests/helpers/scene.js     fixtures: the real registry/palettes/camera axis, config builders
 tests/golden/              fixed-seed reference layouts (layouts.json) + the scenarios that make them
 tools/verify/              headless-browser verification harness (not part of the app)
 tools/golden/update.mjs    regenerates tests/golden/layouts.json (`npm run golden:update`)
 tools/diagnose.mjs         solver diagnostics over many seeds (`npm run diagnose`)
-docs/PROJECT_STATE.md      handoff: decisions, evidence, open items, how we work
+tools/tone.mjs             tonal audit of box faces per strategy and mode (`npm run tone`)
+tools/verify/tone_check.py browser check of the tonal system: legacy identity, contact sheets (see tools/verify/README.md)
+docs/PROJECT_STATE.md      handoff: roadmap status, architecture, decisions, verification, open items, how we work
+docs/prompt.md             the roadmap (Stages 0-7, working rules, priority order)
+docs/PALETTES.md           the eleven palettes: rules, sources, removed names
+docs/PRESETS.md            the Library presets: what they are after, how close, how they were made
 src/types.js               shared JSDoc types (SceneConfigState, LayoutEntry, ShapeDef…)
 tsconfig.json              opt-in strict type checking (see "Types" below)
 ```
@@ -147,7 +169,7 @@ owned by `config/SceneConfig.js`:
 ```js
 {
   version, seed, palette, orientation,
-  time:   { durationMs, intervalMs, autoAdvance },
+  time:   { durationMs, holdMs, autoAdvance },
   shapes: { [type]: { visible, count, sizeMin, sizeMax, spread } }
 }
 ```
@@ -163,7 +185,7 @@ There is exactly one way to change it and one way to react to it:
 Everything else is a view of it or a reaction to it: the panel controls write
 to it and repaint from it; `Composition` adds/removes/shows/hides meshes and
 re-lays-out when the seed or palette changes; `SceneManager` follows
-orientation and palette; `AutoAdvance` owns the timer. Nothing keeps a
+orientation and palette; `AutoAdvance` counts the hold. Nothing keeps a
 private copy of a setting, and the UI never calls `Composition` or the
 renderer to change one. (`Composition.advance()` and Export are actions, not
 settings.) A subscriber must not call `update()`/`replace()` from inside a
@@ -243,13 +265,23 @@ composes the whole scene around a structure, in screen space, and lifts the resu
   appear, and where, is the strategy's. `visible` is still only a display toggle. A *locked* type is replayed verbatim and
   taken out of the plan, as in legacy. `Composition` therefore sizes its mesh pools from the layout, not the config counts.
 - **Screen space first.** `strategies/common.js` gives a strategy the frame (from the orientation) and the camera's screen
-  basis; it plans screen positions, depths, angles and sizes. Because the camera is orthographic and the solver only moves
-  shapes along the view axis, what the strategy places on screen stays exactly there; the solver (unchanged) only settles depth.
+  basis; it plans screen positions, depths, angles and sizes. Because the camera is orthographic and the depth solver only moves
+  shapes along the view axis, what the strategy places on screen stays exactly there; the solver only settles depth (below).
 - **One saturated accent hue per scene.** The palette's accents are split by saturation (`splitPalette`): one saturated
   colour is picked per scene from the seed; everything else is a neutral. No palette data changes.
 - **Roles.** Entries from a strategy carry `role` (anchor, support, connector, accent, detail); legacy entries have none.
 - **Seeding.** Each element draws from its own stream keyed by (seed, strategy, role, i), so changing one element never
   changes another.
+- **Transitions: nothing pops.** A new composition has a different number of shapes, so on every advance each shape on screen glides
+  to the new shape of the **same type** that suits it best (`core/matching.js`: first the same role, nearest first; then what is left
+  of that type, by nearness). A new shape with no counterpart **grows in from a speck at its own place** while everything else
+  moves; an old one with none **shrinks away** and is disposed when its tween ends (`Tween.add`'s `onComplete`). The legacy generator is
+  unchanged: its shapes are the configured counts, each easing to its slot. Matching is a pure function; the scene is rebuilt in the
+  new layout's slot order, so locking and slot indexing work as before.
+- **Paint follows the part, not the history.** A shape's marbling is keyed by its slot (`texture/paintSeed.js`): the index for a legacy
+  shape, and for a strategy shape its role and its ordinal among the shapes of that type and role (`paintSlots`). So the paint of a
+  part is the same through every advance and every reload, a scene reached through any chain of advances looks exactly like a fresh
+  load of the same config, and a shape that glides as the same part keeps its paint (no flicker).
 - A strategy is a module exporting `{ label, plan(ctx) }` (see `axisThrust.js`), one line in `strategies/index.js`, and tests.
 
 **Axis thrust** (the first strategy): one diagonal organises the scene, chosen from the angle families found in the reference
@@ -271,14 +303,62 @@ them (a later stage; nothing is cast yet).
 **Central cluster** (the third strategy): a calm, upright composition, the white-ground cluster of the references. One tight
 cluster near the middle (slightly above it): a main block, a large flat **plate behind** it (kept inside the frame), a low
 **slab beside** it and a **tall bar** on the other side, standing upright and clearly taller than the block. A small second cluster
-of two boxes against the bottom edge, a vertical hairline with two ticks and a dot at the edges, one tiny accent against the cluster
+of two boxes against the bottom edge, a varied pattern of edge details (a plain hairline, a line with one tick, a line with two ticks on
+opposite sides, a parallel pair, a short dash, or nothing; and a dot in most scenes), one tiny accent against the cluster
 and, when frames are enabled, a **diamond outline** around the cluster (a frame at 45 degrees). All the solids are **world-aligned
 with one shared orientation**, so the whole cluster is seen in one axonometric view (three faces each); through the fixed camera a
 world-vertical edge is exactly vertical on screen, so the bar stands upright without turning, and `snapRotation` has nothing to
-snap. The boxes' bounding boxes cover well under half the frame (tested: under 55% in every scene, under 40% on average).
+snap. The whole cluster is scaled to the frame's width, so it is complete in a portrait or square frame too (not cropped, as an early version
+was in portrait). The boxes' bounding boxes cover well under half the frame (tested: under 55% in every scene, under 40% on average).
+
+**Tower, Cross and Mass** (the assembly strategies, v0.13.0): built for what the three diagonal strategies could not make, upright
+compositions and forms laid edge to edge. All three compose in screen space like the others (so size, spread, locks, palettes and the
+solver work unchanged), share `strategies/assemblyKit.js`, and own their shape counts.
+- **Tower**: a near-vertical stack (axis 90 degrees, leaning at most 7) of five to seven slabs and blocks end to end, each stepped
+  to one side, widest one the anchor; a black slot against it; a tall pale plane floating beside it with a small bar on it; long
+  hairlines parallel to the stack and one slanting across it; sometimes one small accent. After the tall-tower lithograph.
+- **Cross**: two variants drawn per scene. The *cross*: one tall bar (the anchor, in the chromatic hue when the palette has one),
+  grey planes behind it at either end, a black rectangle beside it, a pale crossbar with a grey shadow plane under it, a black foot,
+  a diamond outline (frames on) and a slanted hairline. The *column*: a tall dark column with a cube floating across it, half discs
+  cut by the top and bottom edges, a wide low triangle and two thin lines. Everything within a few degrees of upright or level.
+- **Mass**: a compact assembly of four to six boxes laid edge to edge on a grid turned as a whole (0-62 degrees, either way), in front
+  of a great disc or a large dark plane (the anchor), with one long beam across it, thin parallel slats, a small pair of blocks low in
+  the frame and a hairline or two. In about 45% of scenes the backdrop is **pale** (the palette's lightest neutral): a pale slab with a dark
+  assembly on it (the graphite box), or a pale disc that, with planes enabled, sits on a large dark framed field as in the disc lithograph; the boxes keep clear of the backdrop's colour.
+Depth between the neighbouring boxes of a tower or a mass is generous (0.8) and blocks are never thicker than a slab: depth moves nothing
+on screen, and a stack of thick boxes at small spacing made the solver reorder it (the solver tests, which run every strategy, caught it).
 
 The strategies share `strategies/shared.js` (the shape-type names, size and spread, the world-extents to scale conversion, and
 the thrust angle, which the two diagonal strategies use) and `strategies/common.js`.
+
+**What the shapes menu offers.** A strategy may declare `uses`, the shape types it can place (all, if omitted); the Shapes tab then
+shows only those tabs, so a tab is never offered for a shape that will not appear (Central cluster never places a sphere, a segment
+or a ring; Disc and beams never a sphere). Hidden tabs keep their settings and counts, the active tab moves to one still shown, and
+legacy shows all twelve. `tests/strategyUses.test.js` keeps each declaration true in both directions (every listed type appears, no
+other does). The tab strip wraps into rows (about six to a row) instead of squeezing every shape into one.
+
+**The depth solver for strategies** (`strategies/volumeSolver.js`; the legacy generator keeps `CollisionResolver`, unchanged). It settles
+depth only, on the shapes' **real volumes** (`generator/volumes.js`), not their world-axis boxes (which for a long rotated beam are
+about forty times its volume, so visibly separate beams "collided" and were pushed far apart):
+- shapes are placed **by role**, then by true size: locked shapes first (immovable), then the anchor (never moved for anything else), then
+  supports, connectors, accents, details; a shape only ever yields to those already placed;
+- a shape that hits something is slid **the smallest distance that clears it**, one way until nothing is hit (so it cannot go back and
+  forth between two shapes), both ways, and the better is taken: **the way that keeps the strategy's planned front/back order**, unless
+  that costs more than `orderSlack` (3) extra, and never farther than `maxShift` (6) from the planned depth; what cannot be cleared is
+  reported (`unresolved`) and shows in the diagnostics;
+- shapes that cross others on purpose (`collides: false`: rod, frame, ring) neither block nor move;
+- pure and deterministic (ties break by original order); about 0.1-1 ms per layout.
+The depth a strategy plans is therefore what you get (a hairline planned behind the disc stays behind it), and `LayoutEntry.plannedDepth`
+records the plan. The constants (`margin` 0.18, `maxPasses`, `maxShift`, `orderSlack`) are in `config/defaults.js` `COLLISION`; they are
+not UI controls, because they change compositions and a shared link must reproduce.
+
+**Layout diagnostics** (`generator/diagnostics.js`, `generator/volumes.js`). `diagnoseLayout()` measures a layout on the layout itself, with
+the shapes' real volumes (an oriented box, or a ball for the sphere; our own separating-axis test, checked against three's `OBB` on
+thousands of random pairs): pairs of solids whose volumes **intersect in 3D** (errors; a rod, frame or ring crosses others on purpose and
+is not a solid), pairs whose silhouettes **overlap on screen** (not an error: overlap is the look), and, for a strategy, how far the depth
+solver moved solids from the depths the strategy planned (`LayoutEntry.plannedDepth`) and in how many overlapping pairs it reversed the
+planned front/back order. The Scene tab's collapsed **Layout diagnostics** section shows these for the current composition (computed
+only while open); `npm run diagnose` pools them over many seeds. Read-only: nothing here changes a composition.
 
 Diagnostics: `npm run diagnose` includes the strategy scenes. History entries (back/forward) and share links carry the
 strategy; a link or preset that does not mention one is legacy.
@@ -433,11 +513,18 @@ config (`config/boot.js`, called from `main.js`), in this order:
 3. **The defaults.**
 
 A link is applied *on top of* the session and carries only the composition
-(seed, palette, orientation, per-shape settings). Timing — duration,
-interval, auto-advance — is the viewer's own preference and stays whatever
+(seed, palette, orientation, per-shape settings). Timing — transition,
+hold, auto-advance — is the viewer's own preference and stays whatever
 their session had. After a link is read it is removed from the address bar
 (so a reload doesn't re-apply it over later changes) and saved as the new
 session, even if it was invalid.
+
+**Presets** (the Library's and your own) are compositions too: loading one applies
+the seed, palette, orientation, strategy and shapes it was saved with and leaves
+your timing (transition, hold, Auto) alone, so an Exhibition display is never turned
+back into Dev timing by a preset (`presets/applyPreset.js`, `SceneConfig.replace`
+with `keepTime`). A saved preset still stores the timing it was made with; it is
+ignored on load. The restored session is your own state and keeps its timing.
 
 **Autosave** (`config/session.js`) stores the whole SceneConfig under
 `proun-session` shortly after it stops changing (400 ms debounce — an
@@ -501,8 +588,7 @@ seed.
 
 What a shape's surface shows is now **procedural** (see "Visual dynamics" below): `PigmentResponse.js` computes
 the paint in the fragment shader, and `GroundLayer.js` draws the paper/canvas behind the shapes. The older
-canvas-based pieces remain: `PaperTexture.js` (the paper-grain overlay sheet, tinted into the CSS overlay on
-top of the stage), and, behind the lab's *Procedural paint* switch, `PigmentLayer.js` (a pool of grayscale
+canvas-based pieces remain: `PaperTexture.js` (a paper-grain sheet; the CSS overlay it used to feed was retired in v0.14.0), and, behind the lab's *Procedural paint* switch, `PigmentLayer.js` (a pool of grayscale
 pigment-coverage canvases picked by `pickStructureTexture()`) with `MicroVariation.js` (a last jitter pass).
 All canvas noise is **seeded** (`withNoiseSeed` in `noise.js`), never `Math.random`.
 All the *color* a shape shows comes from `material.color`, set via
@@ -522,6 +608,90 @@ paper/watercolor images later, `texture/` is the only place that needs to
 change — shape modules just call `materialSetMesh(...)`/`boxMesh(...)` and
 don't know what's behind it.
 
+### Time: the animation clock, transition and hold
+
+One clock moves everything. Each frame the render loop turns the real time since
+the last frame into one number, `frameDt(raw)` (`core/frameClock.js`), and gives
+that same number to `Tween`, `Rhythm`, the ground and `AutoAdvance`, so they run,
+stall and resume together; nothing reads the wall clock or owns a timer.
+
+- **Real time at any frame rate.** A frame that took up to `STALL_MS` (1 s) counts
+  in full, so a 1-minute transition lasts a minute at 30, 60 or 144 fps and on a
+  machine that manages 4 frames a second.
+- **A suspension is a pause.** A longer frame (a hidden tab, a debugger, a closed
+  lid) advances the clock by `MAX_FRAME_MS` (100 ms) only, and a tab coming back
+  drops the gap, so the animation and the hold resume exactly where they stopped.
+  Advances never queue behind a frozen loop and never catch up.
+- **Transition and hold.** `time` has `durationMs` (the transition window: how
+  long shapes move; 0.2 s to 5 min) and `holdMs` (the rest after it; 0 to 60 min).
+  With Auto on, the next change starts `durationMs + holdMs` after the last one
+  *started*. A change that starts any other way (a click, Space, a preset, a new
+  palette) restarts the cycle, so a manual change is followed by a full hold;
+  turning Auto on starts a fresh cycle. The lab's pause stands the cycle still.
+- **Timing presets** (Motion tab > Time): **Dev** (1.1 s + 2.9 s, the default and
+  the old 4 s cadence) and **Exhibition** (60 s + 15 min). Other values show as
+  Custom. The fields are in seconds; the config keeps milliseconds.
+- **Saved configurations.** Config version 4 replaced `time.intervalMs` by
+  `time.holdMs`. An older preset, session or import is read as
+  `hold = max(0, interval - duration)`, so it keeps its cadence (an old interval
+  shorter than the transition becomes a hold of 0). Share links never carried timing.
+
+### Motion: per-object schedules
+
+Inside one transition window every shape has its own schedule (`core/schedule.js`):
+a delay before it starts, a span it takes, an easing. They are drawn from the seed
+and the shape's (type, role, index), so a composition always moves the same way, and
+from its role's profile (`MOTION_PROFILES` in `config/defaults.js`): anchors start
+first, take nearly the whole window and ease gently; details start last, take a third
+to a half and ease crisply. Every shape starts within the first 25% of the window and
+has arrived by its end (heavy overlap), its path stays straight and its end is the
+target exactly. Lab > Transition > **Stagger** (0 to 1; 0 = every shape moves over the whole
+window with one cubic, the motion before Stage 6.2).
+
+Colour and material have timelines of their own (Stage 6.3), also drawn per shape from
+its role and each over by the end of the window: the **colour** (the new colour's sweep
+and the tone with it) and the **material** (the highlight's amount, the shadow plane's
+colour and its hatching). They run the other way round to the geometry: anchors move
+first and recolour last, details move last and recolour first. The shadow plane's place
+follows the geometry. A tween ends when the last of its three timelines is over.
+
+### Exhibition mode
+
+For showing the picture: the interface hidden, the picture filling the window on black, the cursor gone after 2 s idle, the screen kept awake. It only changes how the page looks; playback is not touched.
+
+- **Enter:** the **Exhibition mode** button (Motion > Time) or **F**. **Leave:** **Esc** or **F** (or the browser's own Esc out of fullscreen).
+- **Kiosk start** (no gesture, so no fullscreen request; use the kiosk browser's own fullscreen): `index.html?exhibition` hides the interface at load and uses the timing saved in the session; `?exhibition&auto` also runs Exhibition timing (60 s + 15 min) with Auto on. The session is saved in the browser, so configure palette, strategy and timing once in the panel and the same profile keeps them.
+- **In the mode:** a click or touch on the picture does not advance it; Space and the arrows still do. The drawing buffer is held to about 8.3 megapixels (`core/stageFit.js`), so a 4K screen at a high pixel ratio is not rendered at 33.
+- **Background fade** (`core/PaperFade.js`): when the palette changes, the paper (ground, edge tint, hatching paper and ink) fades from the colours on screen to the new ones over the transition window with a gentle ease, instead of cutting in the first frame while the shapes are still moving; this is what makes the curated sequence, whose presets have different palettes, change smoothly. Lab > Transition > Background fade switches it off.
+- **Curated sequence** (Motion > Time > Curated sequence, or `?exhibition&playlist`; off by default): with Auto on, each change is the next of the Library's 11 presets instead of a new random composition: shuffled, none twice before all were shown, never the same twice in a row. A preset is shown as a composition at the display's orientation, with your timing unchanged (`core/Playlist.js`). A manual Advance is still a new random composition.
+- **Recovery:** a lost WebGL context (a GPU reset, sleep) is restored by itself, paper included (`core/contextRecovery.js`).
+- **Unattended recovery** (`core/watchdog.js`, only in this mode): 20 uncaught errors within a minute fade the stage out, save the session and reload the page, which comes back as it was (`?exhibition` in the URL puts it straight back in the mode). `?reload=24` (hours, 0.1 to 720) does the same once a day for a fresh GPU and JS state, at the first moment nothing is moving. A reload is never repeated within 5 minutes, and none happens if the browser's storage cannot be used (a loop could not be ruled out). `__proun.watchdog.stats()` shows the counters.
+
+### Long sessions
+
+For an installation that runs for days, at Exhibition timing (Motion > Time > Timing > Exhibition, Auto on).
+
+**Simulated (no browser, about 2 s per simulated day):**
+
+```
+SOAK=1 npx vitest run tests/soak.test.js                  # 24 simulated hours
+SOAK=1 SOAK_HOURS=168 npx vitest run tests/soak.test.js   # a week
+```
+
+It plays the real `AutoAdvance`, `Composition`, `Tween` and `Rhythm` from a fake frame source with hitches and tab suspensions and prints a report: cycle length against the nominal 960 s, shapes in the scene, Tween's bookkeeping, heap. It fails on a wrong cadence, a picture that moves during a hold, shapes or bookkeeping that grow, or heap growth above `SOAK_HEAP_MB` (25). Without `SOAK=1` it plays 3 cycles in every `npm test`.
+
+**In a real browser (what the simulation cannot show):** leave the page open on Exhibition timing and watch these from the console once a minute; they must stay flat over hours:
+
+```js
+setInterval(() => {
+  const i = __proun.getRenderer().info;
+  console.log(new Date().toISOString(), 'geometries', i.memory.geometries, 'textures', i.memory.textures,
+    'draw calls', i.render.calls, 'JS heap MB', ((performance.memory && performance.memory.usedJSHeapSize) / 1048576 || 0).toFixed(1));
+}, 60000);
+```
+
+(`performance.memory` is Chrome only.) `__proun.contextStats()` gives how often the WebGL context was lost and restored: after a restore the picture, paper included, must come back by itself. Draw calls rise during a transition (shapes leaving and arriving together) and fall back to the same number in the hold. Things to look at with your own eyes: that a transition reads as one staggered movement (anchors first, details last, colour trailing or leading as set), that nothing jumps when you click Advance or change the palette mid-transition, that the picture is perfectly still through a hold, and that switching the tab away and back neither jumps nor fires a burst of changes. For the exact cadence, remember that a background tab may be throttled by the browser, which the clock treats as a pause.
+
 ### Visual dynamics
 
 A composition change is an *event*. `core/Rhythm.js` is the shared clock for it:
@@ -530,7 +700,7 @@ loop calls `Rhythm.update(dt)`. Anything that wants to react reads
 `Rhythm.energy` (0..1 envelope, quick attack, slow release, exactly 0 at rest),
 `Rhythm.phase`, .
 Timing is relative to the transition duration and capped by the auto-advance
-interval; a retrigger mid-event continues from the current energy. Constants
+period (transition + hold); a retrigger mid-event continues from the current energy. Constants
 live in `DYNAMICS` (`config/defaults.js`).
 
 **Color change = overpainting** (`texture/PigmentResponse.js`, `core/Tween.js`).
@@ -563,9 +733,8 @@ so new color arrives along the strokes. The sphere (vertex colors) is not covere
 shapes is a procedural full-screen layer drawn first (cloud mottle, fine
 speckle, optional hairline cracks), seeded by a constant, in the picture's own
 coordinates: the same for every composition and palette, sharp at any export
-size. It varies the paper color around its mean, so its visibility changes the
-texture, not the overall tone. The old DOM grain overlay stays at its constant
-opacity over everything. `DYNAMICS.ground.visibility` is std/mean of luminance
+size. At rest it is drawn once into a render target and the scene copies that target (v0.14.1): the ground shader runs again only while something it depends on changes (a morph, a lab edit, a palette change, a resize or export scale). It varies the paper color around its mean, so its visibility changes the
+texture, not the overall tone. Since v0.14.0 the ground is the only paper layer: the old DOM grain overlay (a 50% multiply over the whole stage, shapes included) is gone, so paper and shapes show their palette colours as defined. `DYNAMICS.ground.visibility` is std/mean of luminance
 (references: paper sheets ≈ 0.005–0.01, painted grounds ≈ 0.02–0.06).
 
 **Ground morph** (`texture/GroundLayer.js`): every composition seed has its own
@@ -583,12 +752,12 @@ seed) does not move the ground. The code is skipped by a uniform branch at rest.
 
 ### Reproducibility, export and cost
 
-Nothing in the picture is random at load: the paper-grain overlay and the legacy pigment pool are
+Nothing in the picture is random at load: the legacy pigment pool and its paper sheet are
 built from seeded streams (`withNoiseSeed` in `texture/noise.js`), the paint and ground are pure
 functions of position and a seed, and every layout/palette/accent comes from the composition seed.
 A state reached by advancing and the same state opened from its share link render identically
 (checked pixel for pixel, canvas and composited stage, in sessions with different `Math.random`
-streams). PNG export re-renders the scene at 1×/2×/4× and composes the overlay; the ground and paint
+streams). PNG export re-renders the scene at 1×/2×/4× and copies the canvas; the ground and paint
 are resolution-independent, and the ground's crack lines have a fixed physical width, so every
 size shows the same picture (4× downsampled vs the 1× export: ≈0.8/255 mean difference; ground
 texture bands agree across sizes). Exporting a paused (mid-change) scene matches the screen.
@@ -644,8 +813,8 @@ count/size/spread limits, scene bounds, collision margin, camera, stage
 orientations, overlay opacity. The HTML number inputs get their
 min/max/step/default from there at startup (`index.html` no longer carries
 them), and values typed into the UI or loaded from an imported preset are
-passed through `clampDuration()` / `clampInterval()`, so a bad number can no
-longer produce a never-finishing tween or a runaway auto-advance timer.
+passed through `clampDuration()` / `clampHold()`, so a bad number can no
+longer produce a never-finishing tween or a runaway auto-advance cycle.
 
 ### Tests
 
@@ -663,7 +832,9 @@ UI's limits). `npm run diagnose` prints the solver's residual AABB / true-volume
 
 Strategy suites (Stage 2.1): `strategyCommon` (screen basis, lift, orientations, palette split), `axisThrust` (determinism, count ownership,
 one anchor and subordinate accents, one dominant axis from the angle families, one saturated hue on every shipped palette, locks,
-orientations, clip planes), `centralCluster` (world-aligned solids, an upright bar, the plate in the frame, the edge cluster, the 45 degree diamond, coverage),
+orientations, clip planes), `volumes` (box and ball intersection, against an independent oracle), `volumeSolver` (constructed cases: priority, smallest slide, planned order and its slack, no ping-pong, the default cap, locks, determinism), `strategySolver` (the Stage 3 acceptance criteria on real layouts of every strategy: depth only, no real intersections, near the plan, order kept, large shapes, locks, speed) and `diagnostics` (hand-built layouts with known answers; real strategy layouts against the oracle, solved and unsolved), `matching` (the pure pairing), `composition` (end to end against a real scene: nothing removed at once, new shapes grow from a speck, the
+scene ends exactly on the new composition with nothing leaked, locks, strategy switches, paint independent of history) and `tween`'s
+completion hook, `strategyUses` (each strategy's declared shapes are exactly the shapes it places), `centralCluster` (world-aligned solids, an upright bar, the plate in the frame, the edge cluster, the 45 degree diamond, coverage),
 `discBeams` (the second strategy: structure, one main angle with one or two crossing beams, the beams crossing the rim, colour,
 ring concentricity), `layoutCounts`, and `persistence` (every registered strategy surviving share links, presets, session and
 history; and types added later staying off). `beam` covers the shape's contract and proportions, its legacy and Axis thrust use, and the registry-wide contract;
@@ -687,7 +858,7 @@ Earlier versions of this README also described suites for `rng`, `generate`, `Sc
 `Composition`, `ui`, `migration`, `session`, `share`, `boot`, `clipboard`, `snap`, `lock`, `rod`, `History`, `hiRes`, `config`,
 `CollisionResolver` and `PresetStore`. **The archive the visual-dynamics work started from did not contain a `tests/` directory**,
 so those were not run or modified there. If they exist in your repository, keep them; two things may need updating (details in
-`docs/PROJECT_STATE.md` §11): tests that expect the classic colour lerp in `Tween` (meshes now use the overpaint front by default;
+`docs/PROJECT_STATE.md` Appendix A §A.11): tests that expect the classic colour lerp in `Tween` (meshes now use the overpaint front by default;
 call `setColorFront({ enabled: false })` or assert on `userData.front`), and UI tests that load `index.html` (the panel is now tab pages;
 element ids are unchanged).
 
@@ -720,9 +891,7 @@ shape mid-ease. Left alone for now since it wasn't visually noticeable at
 
 ### Export
 
-`export/PngExporter.js` composites the WebGL canvas with the paper-grain
-overlay (which lives in a separate DOM layer via CSS `mix-blend-mode`, so
-it has to be drawn in manually to match what's on screen; the ground and paint are
+`export/PngExporter.js` copies the WebGL canvas (the paper, the ground and the paint are all
 inside the WebGL render, so they are re-rendered at the export size) and triggers a
 download, named after the seed (`proun-<seed>.png`, `…@2x.png`). This is
 intentionally its own module — a future SVG, JSON composition-recipe, or glTF
@@ -739,6 +908,20 @@ the stage, so it keeps the same proportions at every size. Sizes are capped
 (8192 px on the longest side, 36 megapixels, and whatever the GPU reports); the
 button says "(capped)" when that happens. A 4× export of a retina stage is about
 5760×4480.
+
+**Custom size.** *Custom size…* in the same selector asks for the **longest side in
+pixels** (the picture's aspect ratio is kept), up to **16384 px and 100 megapixels**
+(never smaller than the picture on screen). Up to the single-pass limits above it is
+the same render as 2×/4×. Beyond them (a side over 8192 px, over 36 megapixels, or over
+what the GPU gives) one drawing buffer is not possible, so the picture is rendered in
+**tiles** of at most 4096 px: the same camera with a view offset (`Camera.setViewOffset`),
+the ground drawn for the same part of the picture (the ground shader's `uTile`), each tile
+copied into one output canvas (`SceneManager.renderTiled`, `export/hiRes.js`). The
+renderer and camera are put back afterwards, always. It is synchronous, so the page does
+not repaint while it works (the button says "Rendering…"; about 75 s in software GL
+for 63 megapixels, far less on a GPU); the button then says "(tiled)" and the file is
+named `proun-<seed>@<px>px.png`. A 100-megapixel PNG is large and the browser may fail to
+encode it: lower the size if it does.
 
 ### The camera is fixed
 

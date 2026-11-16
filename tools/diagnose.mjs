@@ -75,3 +75,42 @@ for (const [name, counts, [sizeMin, sizeMax], strategy] of SCENARIOS) {
   }
   console.log(name.padEnd(30), (shapeTotal / N).toFixed(1).padStart(12), String(pairs).padStart(9), pct(aabb, pairs).padStart(7), pct(obb, pairs).padStart(7), pct(clipped, N).padStart(8), (spanSum / N).toFixed(1).padStart(16));
 }
+
+// ---------------------------------------------------------------------------------------------
+// Layout diagnostics per composition strategy (Stage 3): what the depth solver does to what the
+// strategy planned. Measured on the layouts themselves with the real volumes of the shapes
+// (generator/diagnostics.js), pooled over N seeds.
+//   3D hits      pairs of solids whose real volumes intersect (errors), per scene
+//   ..anchor     of those, pairs involving the anchor
+//   overlaps     pairs of shapes overlapping on screen (the look, not an error), per scene
+//   order flips  of the overlapping pairs the plan ordered front/back, the share the solver reversed
+//   shift        how far solids end up from their planned depth: mean / 95th percentile / max
+import { diagnoseLayout } from '../src/generator/diagnostics.js';
+import { view } from '../tests/helpers/scene.js';
+
+const STRATEGY_MODES = [
+  ['axis-thrust', 'defaults', each(1)],
+  ['axis-thrust', 'all shapes', each(1, { rod: 1, beam: 1, segment: 1, crescent: 1, frame: 1, ring: 1 })],
+  ['disc-beams', 'defaults', each(1)],
+  ['disc-beams', 'all shapes', each(1, { rod: 1, beam: 1, segment: 1, crescent: 1, frame: 1, ring: 1 })],
+  ['central-cluster', 'defaults', each(1)],
+  ['central-cluster', 'all shapes', each(1, { rod: 1, beam: 1, segment: 1, crescent: 1, frame: 1, ring: 1 })]
+];
+const f1 = (x) => x.toFixed(1);
+console.log('\nLayout diagnostics per strategy (real volumes), ' + N + ' seeds:\n');
+console.log('mode'.padEnd(34), '3D hits'.padStart(8), '..anchor'.padStart(9), 'overlaps'.padStart(9), 'order flips'.padStart(12), ' shift mean / p95 / max'.padEnd(26), 'depth span');
+for (const [name, label, counts] of STRATEGY_MODES) {
+  let hits = 0, anchorHits = 0, overlaps = 0, pairs = 0, flips = 0, span = 0;
+  const shifts = [];
+  for (let seed = 1; seed <= N; seed++) {
+    const layout = layoutOf({ ...makeConfig(seed, counts), composition: { strategy: name }, orientation: 'landscape' });
+    const d = diagnoseLayout({ entries: layout, shapeDefs: shapeRegistry, view });
+    hits += d.trueIntersections; anchorHits += d.anchorIntersections; overlaps += d.projectedOverlaps;
+    pairs += d.orderPairs; flips += d.orderFlips; span += d.depthSpan; shifts.push(...d.shifts);
+  }
+  shifts.sort((a, b) => a - b);
+  const q = (p) => shifts[Math.min(shifts.length - 1, Math.floor(p * shifts.length))] || 0;
+  const mean = shifts.reduce((a, b) => a + b, 0) / Math.max(1, shifts.length);
+  console.log((name + ' / ' + label).padEnd(34), (hits / N).toFixed(2).padStart(8), (anchorHits / N).toFixed(2).padStart(9), f1(overlaps / N).padStart(9),
+    ((100 * flips / Math.max(1, pairs)).toFixed(0) + '%').padStart(12), ('  ' + mean.toFixed(2) + ' / ' + q(0.95).toFixed(2) + ' / ' + (shifts[shifts.length - 1] || 0).toFixed(2)).padEnd(26), f1(span / N).padStart(8));
+}

@@ -1,6 +1,6 @@
 // @ts-check
 import * as THREE from 'three';
-import { computeAABB, resolveCollisions } from '../CollisionResolver.js';
+import { resolveVolumes } from './volumeSolver.js';
 import { frameFor, screenBasis, lift, splitPalette } from './common.js';
 
 /** @typedef {import('../../types.js').LayoutEntry} LayoutEntry */
@@ -38,6 +38,9 @@ import { frameFor, screenBasis, lift, splitPalette } from './common.js';
 /**
  * @typedef {Object} Strategy
  * @property {string} label
+ * @property {string[]} [uses]  the shape types the strategy can place (all, if omitted). The shapes menu
+ *           shows only these, so a type the strategy never places is not offered; tests/strategyUses.test.js
+ *           keeps the list true in both directions (every listed type appears, no other does)
  * @property {(ctx: PlanContext) => PlanItem[]} plan
  */
 
@@ -59,9 +62,10 @@ import { frameFor, screenBasis, lift, splitPalette } from './common.js';
  * @param {{ accents: string[], ink?: string, paper?: string }} args.palette
  * @param {ShapeDef[]} args.shapeDefs
  * @param {{ depthAxis: THREE.Vector3, billboard: THREE.Quaternion }} args.view
+ * @param {boolean} [args.solve]  false: skip the depth solver (the plan as drawn)
  * @returns {LayoutEntry[]}
  */
-export function runStrategy({ strategy, config, palette, shapeDefs, view }) {
+export function runStrategy({ strategy, config, palette, shapeDefs, view, solve = true }) {
   const basis = screenBasis(view.depthAxis);
   /** @type {Map<string, ShapeDef>} */
   const usable = new Map();
@@ -82,7 +86,7 @@ export function runStrategy({ strategy, config, palette, shapeDefs, view }) {
     snapRotation: shapeDefs.some((sd) => usable.has(sd.type) && config.shapes[sd.type].snapRotation)
   }).filter((it) => usable.has(it.type));
 
-  /** @typedef {{ entry: Omit<LayoutEntry, 'position'> & { role?: string }, position: THREE.Vector3, box: THREE.Box3, fixed?: boolean, collides: boolean, order: number }} Cand */
+  /** @typedef {import('./volumeSolver.js').SolveItem & { entry: Omit<LayoutEntry, 'position'> }} Cand */
   /** @type {Cand[]} */
   const cands = [];
   /** @type {Map<string, number>} */
@@ -98,8 +102,7 @@ export function runStrategy({ strategy, config, palette, shapeDefs, view }) {
         const q = shape.facesCamera ? view.billboard.clone() : new THREE.Quaternion().setFromEuler(new THREE.Euler(...e.rotation));
         cands.push({
           entry: { type: shape.type, index: i, rotation: e.rotation, scale: e.scale, hex: e.hex },
-          position, box: computeAABB(shape.localHalfExtents, position, q, scale), fixed: true,
-          collides: shape.collides !== false, order
+          shape, q, scale, position, fixed: true, collides: shape.collides !== false, order
         });
       });
     }
@@ -116,15 +119,16 @@ export function runStrategy({ strategy, config, palette, shapeDefs, view }) {
     const euler = new THREE.Euler().setFromQuaternion(shape.facesCamera ? new THREE.Quaternion() : it.orientation, 'XYZ');
     cands.push({
       entry: {
-        type: it.type, index, rotation: [euler.x + 0, euler.y + 0, euler.z + 0], scale: scale.toArray(), hex: it.hex, role: it.role
+        type: it.type, index, rotation: [euler.x + 0, euler.y + 0, euler.z + 0], scale: scale.toArray(), hex: it.hex, role: it.role,
+        plannedDepth: it.depth // where the strategy meant it to be along the view axis, before the solver (see generator/diagnostics.js)
       },
-      position, box: computeAABB(shape.localHalfExtents, position, q, scale),
-      collides: shape.collides !== false, order
+      shape, q, scale, position, role: it.role, planned: it.depth, collides: shape.collides !== false, order
     });
   });
 
-  // depth-only resolution between everything that collides, locked types fixed
-  resolveCollisions(cands.filter((c) => c.collides), view.depthAxis);
+  // Depth-only resolution between everything that collides (locked shapes immovable), on the shapes' real volumes, by role, keeping
+  // the planned front/back order: see volumeSolver.js. `solve: false` returns the plan as it was drawn (for tests and diagnostics).
+  if (solve) resolveVolumes(cands, view.depthAxis);
 
   cands.sort((a, b) => a.order - b.order || a.entry.index - b.entry.index);
   return cands.map((c) => ({ ...c.entry, position: c.position.toArray() }));

@@ -246,3 +246,4 @@ Avoid unrelated refactoring. Do not introduce new dependencies without explainin
 The central principle is to improve the generator's ability to construct convincing Proun-like compositions before adding more visual complexity.
 
 Begin with Stage 0 only. Wait for my review before implementing Stage 1.
+

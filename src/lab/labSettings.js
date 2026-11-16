@@ -30,6 +30,8 @@ import { DYNAMICS } from '../config/defaults.js';
 /** @type {LabItem[]} */
 export const LAB_SCHEMA = [
   { group: 'Transition', key: 'holdOn', label: 'Pause and scrub', type: 'toggle', default: false, hint: 'Freezes the scene on the last change. 0 = before, 1 = after; past 1 only the ground keeps settling.' },
+  { group: 'Transition', key: 'stagger', label: 'Stagger', min: 0, max: 1, step: 0.05, default: DYNAMICS.motion.stagger, path: 'motion.stagger' },
+  { group: 'Transition', key: 'paperFade', label: 'Background fade', type: 'toggle', default: DYNAMICS.motion.paperFade },
   { group: 'Transition', key: 'hold', label: 'Step', unit: '× dur', min: 0, max: 2, step: 0.01, default: 0.35 },
 
   { group: 'Color change', key: 'colorFront', label: 'Overpaint on', type: 'toggle', default: true },
@@ -38,20 +40,38 @@ export const LAB_SCHEMA = [
   { group: 'Color change', key: 'colorGrain', label: 'Grain erosion', min: 0, max: 1, step: 0.01, default: DYNAMICS.color.grain, path: 'color.grain' },
   { group: 'Color change', key: 'colorTone', label: 'Tonal shift', min: 0, max: 0.2, step: 0.005, default: DYNAMICS.color.tone, path: 'color.tone' },
 
-  { group: 'Paint', key: 'paintOn', label: 'Procedural paint', type: 'toggle', default: true },
-  { group: 'Paint', key: 'paintVis', label: 'Visibility', min: 0, max: 0.12, step: 0.002, default: DYNAMICS.paint.visibility, path: 'paint.visibility' },
-  { group: 'Paint', key: 'strokeScale', label: 'Stroke width', min: 0.3, max: 3, step: 0.05, default: DYNAMICS.paint.strokeScale, path: 'paint.strokeScale' },
-  { group: 'Paint', key: 'strokeLength', label: 'Stroke length', unit: '× wide', min: 1, max: 12, step: 0.5, default: DYNAMICS.paint.strokeLength, path: 'paint.strokeLength' },
-  { group: 'Paint', key: 'followStrokes', label: 'Strokes follow size', min: 0, max: 1, step: 0.05, default: DYNAMICS.paint.followStrokes, path: 'paint.followStrokes' },
-  { group: 'Paint', key: 'followStains', label: 'Stains follow size', min: 0, max: 1, step: 0.05, default: DYNAMICS.paint.followStains, path: 'paint.followStains' },
+  { group: 'Pigment', key: 'paintOn', label: 'Procedural paint', type: 'toggle', default: true },
+  { group: 'Pigment', key: 'paintVis', label: 'Visibility', min: 0, max: 0.12, step: 0.002, default: DYNAMICS.paint.visibility, path: 'paint.visibility' },
+  { group: 'Pigment', key: 'strokeScale', label: 'Stroke width', min: 0.3, max: 3, step: 0.05, default: DYNAMICS.paint.strokeScale, path: 'paint.strokeScale' },
+  { group: 'Pigment', key: 'strokeLength', label: 'Stroke length', unit: '× wide', min: 1, max: 12, step: 0.5, default: DYNAMICS.paint.strokeLength, path: 'paint.strokeLength' },
+  { group: 'Pigment', key: 'followStrokes', label: 'Strokes follow size', min: 0, max: 1, step: 0.05, default: DYNAMICS.paint.followStrokes, path: 'paint.followStrokes' },
+  { group: 'Pigment', key: 'followStains', label: 'Stains follow size', min: 0, max: 1, step: 0.05, default: DYNAMICS.paint.followStains, path: 'paint.followStains' },
+  { group: 'Pigment', key: 'hatchOn', label: 'Hatching on', type: 'toggle', default: true },
+  { group: 'Pigment', key: 'hatchSpacing', label: 'Hatch spacing', unit: 'units', min: 0.02, max: 0.2, step: 0.002, default: DYNAMICS.hatch.spacing, path: 'hatch.spacing' },
+  { group: 'Pigment', key: 'hatchWidth', label: 'Hatch line width', min: 0.1, max: 0.7, step: 0.01, default: DYNAMICS.hatch.width, path: 'hatch.width' },
+  { group: 'Pigment', key: 'hatchLight', label: 'Hatch toward ink (light surface)', min: 0, max: 0.5, step: 0.005, default: DYNAMICS.hatch.light, path: 'hatch.light' },
+  { group: 'Pigment', key: 'hatchDark', label: 'Hatch toward paper (dark surface)', min: 0, max: 0.5, step: 0.005, default: DYNAMICS.hatch.dark, path: 'hatch.dark' },
+  { group: 'Pigment', key: 'hatchWobble', label: 'Hatch wander', min: 0, max: 1, step: 0.01, default: DYNAMICS.hatch.wobble, path: 'hatch.wobble' },
+  { group: 'Pigment', key: 'hatchBreaks', label: 'Hatch breaks', min: 0, max: 0.6, step: 0.01, default: DYNAMICS.hatch.breaks, path: 'hatch.breaks' },
+  { group: 'Pigment', key: 'surfEvolve', label: 'Patterns evolve with each change', type: 'toggle', default: false },
+  { group: 'Edge', key: 'edgeOn', label: 'Edge character on', type: 'toggle', default: true },
+  { group: 'Edge', key: 'edgeWidth', label: 'Band width', unit: 'units', min: 0.005, max: 0.1, step: 0.001, default: DYNAMICS.edge.width, path: 'edge.width' },
+  { group: 'Edge', key: 'edgeThin', label: 'Thinning', min: 0, max: 0.6, step: 0.01, default: DYNAMICS.edge.thinning, path: 'edge.thinning' },
+  { group: 'Edge', key: 'edgePool', label: 'Pooling', min: 0, max: 0.3, step: 0.005, default: DYNAMICS.edge.pooling, path: 'edge.pooling' },
+  { group: 'Edge', key: 'edgeSoft', label: 'Silhouette softness', unit: 'units', min: 0, max: 0.05, step: 0.001, default: DYNAMICS.silhouette.softness, path: 'silhouette.softness' },
+  { group: 'Edge', key: 'edgeIrr', label: 'Silhouette irregularity', unit: 'units', min: 0, max: 0.04, step: 0.001, default: DYNAMICS.silhouette.irregularity, path: 'silhouette.irregularity' },
+  { group: 'Response', key: 'respOn', label: 'Respond to the event clock', type: 'toggle', default: true },
+  { group: 'Response', key: 'respEdge', label: 'Edge band widens', min: 0, max: 1, step: 0.01, default: DYNAMICS.response.edge, path: 'response.edge' },
+  { group: 'Response', key: 'respSoft', label: 'Silhouette softens', min: 0, max: 1, step: 0.01, default: DYNAMICS.response.softness, path: 'response.softness' },
+  { group: 'Response', key: 'respTooth', label: 'Paint tooth lifts', min: 0, max: 0.5, step: 0.01, default: DYNAMICS.response.tooth, path: 'response.tooth' },
+  { group: 'Support', key: 'groundOn', label: 'Ground texture on', type: 'toggle', default: true },
+  { group: 'Support', key: 'groundVis', label: 'Visibility', min: 0, max: 0.08, step: 0.002, default: DYNAMICS.ground.visibility, path: 'ground.visibility' },
+  { group: 'Support', key: 'groundScale', label: 'Patch size', min: 0.4, max: 2.5, step: 0.05, default: DYNAMICS.ground.scale, path: 'ground.scale' },
+  { group: 'Support', key: 'groundCracks', label: 'Cracks', min: 0, max: 1, step: 0.02, default: DYNAMICS.ground.cracks, path: 'ground.cracks' },
+  { group: 'Support', key: 'groundCrackSize', label: 'Crack size', min: 0.3, max: 3, step: 0.05, default: DYNAMICS.ground.crackScale, path: 'ground.crackScale' },
+  { group: 'Support', key: 'groundCrackStretch', label: 'Crack elongation', min: 0.5, max: 5, step: 0.1, default: DYNAMICS.ground.crackStretch, path: 'ground.crackStretch' },
+  { group: 'Support', key: 'groundCrackVary', label: 'Cracks vary', min: 0, max: 1, step: 0.05, default: DYNAMICS.ground.crackVary, path: 'ground.crackVary' },
 
-  { group: 'Ground', key: 'groundOn', label: 'Ground texture on', type: 'toggle', default: true },
-  { group: 'Ground', key: 'groundVis', label: 'Visibility', min: 0, max: 0.08, step: 0.002, default: DYNAMICS.ground.visibility, path: 'ground.visibility' },
-  { group: 'Ground', key: 'groundScale', label: 'Patch size', min: 0.4, max: 2.5, step: 0.05, default: DYNAMICS.ground.scale, path: 'ground.scale' },
-  { group: 'Ground', key: 'groundCracks', label: 'Cracks', min: 0, max: 1, step: 0.02, default: DYNAMICS.ground.cracks, path: 'ground.cracks' },
-  { group: 'Ground', key: 'groundCrackSize', label: 'Crack size', min: 0.3, max: 3, step: 0.05, default: DYNAMICS.ground.crackScale, path: 'ground.crackScale' },
-  { group: 'Ground', key: 'groundCrackStretch', label: 'Crack elongation', min: 0.5, max: 5, step: 0.1, default: DYNAMICS.ground.crackStretch, path: 'ground.crackStretch' },
-  { group: 'Ground', key: 'groundCrackVary', label: 'Cracks vary', min: 0, max: 1, step: 0.05, default: DYNAMICS.ground.crackVary, path: 'ground.crackVary' },
 
   { group: 'Ground motion', key: 'gmOn', label: 'Ground morph on', type: 'toggle', default: true },
   { group: 'Ground motion', key: 'gmDelay', label: 'Delay', unit: '× dur', min: 0, max: 1, step: 0.01, default: DYNAMICS.groundMotion.delay, path: 'groundMotion.delay' },
@@ -70,8 +90,10 @@ export const LAB_GROUP_TABS = {
   'Transition': 'motion',
   'Color change': 'motion',
   'Ground motion': 'motion',
-  'Paint': 'surface',
-  'Ground': 'surface'
+  'Pigment': 'surface',
+  'Edge': 'surface',
+  'Response': 'surface',
+  'Support': 'surface'
 };
 
 /** @typedef {Record<string, number | boolean>} LabValues */

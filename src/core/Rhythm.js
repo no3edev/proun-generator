@@ -11,8 +11,8 @@ import { DYNAMICS } from '../config/defaults.js';
 //   phase   0..1 linear progress through the transition itself (the same
 //           duration the Tween uses), 1 at rest
 //
-// It runs on the loop's own clamped dt, exactly like Tween, so the two stay
-// in step and both pause together in a hidden tab. All timing is relative to
+// It runs on the loop's animation clock (core/frameClock.js), exactly like Tween
+// and the auto-advance hold, so they stay in step and pause together in a hidden tab. All timing is relative to
 // the transition duration (and capped by the auto-advance interval), so
 // changing either setting changes the rhythm, not the shape of the response.
 //
@@ -88,7 +88,7 @@ export const Rhythm = {
   /**
    * A composition change began.
    * @param {number} durationMs the transition duration
-   * @param {number} [intervalMs] the auto-advance interval, 0 if none
+   * @param {number} [intervalMs] the auto-advance period (the transition plus the hold), 0 if none
    */
   trigger(durationMs, intervalMs = 0) {
     this.duration = Math.max(1, durationMs);

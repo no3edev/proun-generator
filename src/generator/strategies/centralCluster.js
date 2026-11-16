@@ -4,7 +4,7 @@ import { createRng } from '../rng.js';
 import {
   screenDirection, barOrientation, flatOrientation, luminance, pickWeighted, between, rad
 } from './common.js';
-import { T, sizeMult, spreadOf, scaleFor } from './shared.js';
+import { T, sizeMult, spreadOf, scaleFor, ALL_TYPES } from './shared.js';
 
 /** @typedef {import('./run.js').PlanItem} PlanItem */
 /** @typedef {import('./run.js').Strategy} Strategy */
@@ -33,6 +33,8 @@ import { T, sizeMult, spreadOf, scaleFor } from './shared.js';
 /** @type {Strategy} */
 export const centralCluster = {
   label: 'Central cluster',
+  // never places a sphere, a segment or a ring: the cluster is boxes, with flat accents and a diamond frame
+  uses: ALL_TYPES.filter((t) => ![T.sphere, T.segment, T.ring].includes(t)),
 
   plan(ctx) {
     const { seed, frame, basis, colors } = ctx;
@@ -71,9 +73,15 @@ export const centralCluster = {
     const cy = between(rn, 0.0, 0.3) * frame.halfH; // a little above the middle
     const c = { x: cx, y: cy };
     // the main block's world extents (x, y, z) and its footprint on screen
-    const ex = H * between(rn, 0.26, 0.38), ey = H * between(rn, 0.2, 0.34), ez = H * between(rn, 0.18, 0.3);
+    const ex0 = H * between(rn, 0.26, 0.38), ey0 = H * between(rn, 0.2, 0.34), ez0 = H * between(rn, 0.18, 0.3);
     const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
-    const fw = ex * Math.abs(X.dot(basis.right)) + ez * Math.abs(Z.dot(basis.right));
+    const fw0 = ex0 * Math.abs(X.dot(basis.right)) + ez0 * Math.abs(Z.dot(basis.right));
+    // The plate, slab and bar reach about 1.25 times the main block's width out from its middle. The frame is as tall in
+    // every orientation but not as wide in a portrait or square one, so the whole cluster is scaled to fit the width
+    // (leaving the outer fifth of the frame for the edge details); in a landscape frame this rarely does anything.
+    const fit = Math.min(1, (0.7 * frame.halfW) / (1.25 * fw0));
+    const ex = ex0 * fit, ey = ey0 * fit, ez = ez0 * fit;
+    const fw = fw0 * fit;
     const fh = ey * Math.abs(Y.dot(basis.up)) + ex * Math.abs(X.dot(basis.up)) + ez * Math.abs(Z.dot(basis.up));
     let mainSize = Math.max(fw, fh);
     if (mainType) {
@@ -161,32 +169,52 @@ export const centralCluster = {
       }
     }
 
-    // --- fine details at the edges: a vertical hairline with two ticks, a dot ---------
+    // --- fine details at the edges: a varied pattern of hairlines and ticks, and a dot ---
+    // Several patterns, one per scene (or none), so the edge never settles into one recognisable sign: a plain line, a line with
+    // one tick, a line with two ticks on opposite sides, a pair of parallel lines, or a short dash.
     const lineTypes = [T.rod, T.beam, T.block, T.plane].filter(has);
+    const tickAccent = accentHue && backHex !== accentHue && barHex !== accentHue ? accentHue : null;
     if (lineTypes.length) {
       const r = R('hairline');
       const type = lineTypes[0];
       const k = sizeMult(ctx, type, r), sp = spreadOf(ctx, type);
+      const pattern = pickWeighted(r, /** @type {Array<[string, number]>} */ ([
+        ['line', 0.22], ['tick', 0.22], ['ticks', 0.14], ['pair', 0.16], ['dash', 0.16], ['none', 0.10]
+      ]));
       const x = -edgeSide * frame.halfW * between(r, 0.78, 0.88);
-      const y = between(r, -0.2, 0.25) * frame.halfH;
+      const yMid = between(r, -0.25, 0.3) * frame.halfH * sp;
       const len = H * between(r, 0.25, 0.45) * k;
       const wdt = H * between(r, 0.008, 0.014) * k;
-      items.push({
-        type, role: 'detail', depth: between(r, 0, 2), x, y: y * sp,
-        orientation: identity(), scale: scaleFor(ctx, type, wdt, len, wdt), hex: ctx.ink
+      const inward = x > 0 ? -1 : 1; // toward the middle of the frame
+      const vertical = (/** @type {number} */ px, /** @type {number} */ py, /** @type {number} */ l, /** @type {string} */ hex) => items.push({
+        type, role: 'detail', depth: between(r, 0, 2), x: px, y: py,
+        orientation: identity(), scale: scaleFor(ctx, type, wdt, l, wdt), hex
       });
-      for (let i = 0; i < 2; i++) {
-        const tl = H * between(r, 0.04, 0.09) * k;
-        items.push({
-          type, role: 'detail', depth: between(r, 0, 2),
-          x: x + (x > 0 ? -tl / 2 : tl / 2), // a tick reaches inward from the hairline
-          y: y * sp + len / 2 - (0.12 + 0.12 * i) * len,
-          orientation: barOrientation(screenDirection(basis, 0, 0), 0), scale: scaleFor(ctx, type, tl, wdt, wdt),
-          hex: i === 0 && accentHue && backHex !== accentHue && barHex !== accentHue ? accentHue : ctx.ink
-        });
-      }
+      // a tick lies across the line, reaching `dir` (+1 / -1: right / left) from px
+      const tick = (/** @type {number} */ px, /** @type {number} */ py, /** @type {number} */ tl, /** @type {number} */ dir, /** @type {string} */ hex) => items.push({
+        type, role: 'detail', depth: between(r, 0, 2), x: px + dir * tl / 2, y: py,
+        orientation: barOrientation(screenDirection(basis, 0, 0), 0), scale: scaleFor(ctx, type, tl, wdt, wdt), hex
+      });
+      const along = (/** @type {number} */ f) => yMid - len / 2 + f * len; // a height on the line, f in 0..1 from the bottom
+      if (pattern === 'line') {
+        vertical(x, yMid, len, ctx.ink);
+      } else if (pattern === 'tick') {
+        vertical(x, yMid, len, ctx.ink);
+        tick(x, along(between(r, 0.15, 0.85)), H * between(r, 0.04, 0.09) * k, r() < 0.5 ? inward : -inward, tickAccent && r() < 0.5 ? tickAccent : ctx.ink);
+      } else if (pattern === 'ticks') {
+        vertical(x, yMid, len, ctx.ink);
+        // on opposite sides, at different heights and lengths: never two on one side near the top (that reads as a letter)
+        tick(x, along(between(r, 0.15, 0.4)), H * between(r, 0.04, 0.09) * k, inward, ctx.ink);
+        tick(x, along(between(r, 0.55, 0.85)), H * between(r, 0.03, 0.07) * k, -inward, tickAccent && r() < 0.5 ? tickAccent : ctx.ink);
+      } else if (pattern === 'pair') {
+        vertical(x, yMid, len, ctx.ink);
+        const len2 = len * between(r, 0.55, 0.85);
+        vertical(x + inward * H * between(r, 0.03, 0.06), yMid + (r() - 0.5) * (len - len2), len2, tickAccent && r() < 0.4 ? tickAccent : ctx.ink);
+      } else if (pattern === 'dash') {
+        tick(x, yMid, H * between(r, 0.05, 0.1) * k, r() < 0.5 ? inward : -inward, tickAccent && r() < 0.5 ? tickAccent : ctx.ink);
+      } // 'none': just the dot, below
     }
-    if (has(T.circle)) {
+    if (has(T.circle) && R('dot-chance')() < 0.6) {
       const r = R('dot');
       const d = H * between(r, 0.025, 0.045) * sizeMult(ctx, T.circle, r);
       const s = scaleFor(ctx, T.circle, d, d, 1); s[2] = 1;

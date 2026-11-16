@@ -350,6 +350,19 @@ export function buildShapeTabs(container) {
     return { label: shape.label, panel, icon: shapeIcon(shape.type) };
   });
 
-  const { container: tabsEl } = createTabs(tabs);
-  container.appendChild(tabsEl);
+  shapeTabs = createTabs(tabs);
+  container.appendChild(shapeTabs.container);
+}
+
+let shapeTabs = null;
+
+/**
+ * Shows only the shape tabs for `types` (a Set of shape types), or all of them for null. The composition strategy decides
+ * which types can appear (strategies/index.js STRATEGY_USES), and a tab for a shape that will not appear is only confusing.
+ * Hidden tabs keep their settings, and a type that is not shown still has its count and lock in the config.
+ * @param {Set<string> | null} types
+ */
+export function showShapeTabsFor(types) {
+  if (!shapeTabs) return;
+  shapeRegistry.forEach((shape, i) => shapeTabs.setHidden(i, !!types && !types.has(shape.type)));
 }
